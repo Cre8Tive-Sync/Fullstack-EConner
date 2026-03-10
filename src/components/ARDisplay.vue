@@ -5,15 +5,16 @@
 <script>
 import { createRoot } from 'react-dom/client'
 import { createElement } from 'react'
-import ARScene from './ar/ARScene.jsx'
 
 export default {
   mounted() {
-    this._arRoot = createRoot(this.$refs.arMount)
-    this._arRoot.render(createElement(ARScene))
+    import('./ar/ARScene.jsx').then(({ default: ARScene }) => {
+      this._arRoot = createRoot(this.$refs.arMount)
+      this._arRoot.render(createElement(ARScene))
+    })
   },
   beforeUnmount() {
-    this._arRoot.unmount()
+    this._arRoot?.unmount()
   }
 }
 </script>
