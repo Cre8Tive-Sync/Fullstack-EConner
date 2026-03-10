@@ -5,7 +5,7 @@
 <script>
 import { createRoot } from 'react-dom/client'
 import { createElement } from 'react'
-import ARScene from './ar/ARScene'
+import ARScene from './ar/ARScene.jsx'
 
 export default {
   mounted() {
