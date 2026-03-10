@@ -21,8 +21,10 @@ npm install
 ### Compile and Hot-Reload for Development
 
 ```sh
-npm run dev
+npm run dev -- --host 
 ```
+Make sure to use Desktop's IP when checking for mobile
+✅ Check if both are connected to same Internet
 
 ### Type-Check, Compile and Minify for Production
 
