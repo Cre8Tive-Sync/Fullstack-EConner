@@ -5,23 +5,21 @@ on:
   push:
     branches:
       - main
-  schedule:
-    - cron: '*/2 * * * *'
+  workflow_run:
+    workflows: ["Sync Project Status to Labels"]
+    types:
+      - completed
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug owner
-        run: |
-          curl -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
-            https://api.github.com/orgs/Cre8Tive-Sync
       - name: Sync status labels and notify Discord
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_TOKEN }}
           script: |
-            const projectNumber = 1; // 👈 change to your project number
+            const projectNumber = 1;
             const owner = 'Cre8Tive-Sync';
 
             const query = `
@@ -73,7 +71,6 @@ jobs:
 
               if (currentLabels.includes(newLabel)) continue;
 
-              // Remove old status labels
               for (const old of currentLabels.filter(l => statusLabels.includes(l))) {
                 await github.rest.issues.removeLabel({
                   owner,
@@ -83,7 +80,6 @@ jobs:
                 });
               }
 
-              // Apply new label
               try {
                 await github.rest.issues.addLabels({
                   owner,
@@ -106,7 +102,6 @@ jobs:
                 });
               }
 
-              // Notify Discord
               const emojiMap = {
                 'backlog': '📋',
                 'in-progress': '🔄',
@@ -123,7 +118,14 @@ jobs:
                 })
               });
             }
-
-            
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+      - name: Re-trigger in 2 minutes
+        run: |
+          sleep 120
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync-labels.yml/dispatches \
+            -d '{"ref":"main"}'
