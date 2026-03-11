@@ -1,0 +1,103 @@
+name: Sync Project Status to Labels
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'  # runs every 5 minutes
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync status labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          script: |
+            const projectNumber = 1; // 👈 change to your project number
+            const owner = context.repo.owner;
+
+            // Fetch project items and their status
+            const query = `
+              query {
+                user(login: "${owner}") {
+                  projectV2(number: ${projectNumber}) {
+                    items(first: 100) {
+                      nodes {
+                        fieldValues(first: 10) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              name
+                              field { ... on ProjectV2SingleSelectField { name } }
+                            }
+                          }
+                        }
+                        content {
+                          ... on Issue {
+                            number
+                            labels(first: 10) {
+                              nodes { name }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query);
+            const items = result.user.projectV2.items.nodes;
+
+            const statusLabels = ['backlog', 'in-progress', 'in-review', 'done'];
+
+            for (const item of items) {
+              const issue = item.content;
+              if (!issue?.number) continue;
+
+              // Find the Status field value
+              const statusField = item.fieldValues.nodes.find(
+                f => f?.field?.name === 'Status'
+              );
+              if (!statusField?.name) continue;
+
+              const newLabel = statusField.name.toLowerCase().replace(/\s+/g, '-');
+              const currentLabels = issue.labels.nodes.map(l => l.name);
+
+              // Skip if label already matches
+              if (currentLabels.includes(newLabel)) continue;
+
+              // Remove old status labels
+              for (const old of currentLabels.filter(l => statusLabels.includes(l))) {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: old
+                });
+              }
+
+              // Apply new label (create it if it doesn't exist)
+              try {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: [newLabel]
+                });
+              } catch {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo: context.repo.repo,
+                  name: newLabel,
+                  color: 'ededed'
+                });
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: [newLabel]
+                });
+              }
+            }
