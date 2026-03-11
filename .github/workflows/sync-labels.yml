@@ -9,6 +9,10 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug owner
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+            https://api.github.com/orgs/Cre8Tive-Sync
       - name: Sync status labels and notify Discord
         uses: actions/github-script@v7
         with:
