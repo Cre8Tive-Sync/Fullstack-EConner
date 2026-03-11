@@ -15,7 +15,7 @@ jobs:
           github-token: ${{ secrets.GH_TOKEN }}
           script: |
             const projectNumber = 1; // 👈 change to your project number
-            const owner = context.repo.owner;
+            const owner = 'Cre8Tive-Sync';
 
             const query = `
               query {
