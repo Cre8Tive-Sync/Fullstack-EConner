@@ -1,8 +1,8 @@
-name: Trigger Sync Every 2 Minutes
+name: Trigger Sync A
 
 on:
   workflow_run:
-    workflows: ["Trigger Sync Every 2 Minutes"]
+    workflows: ["Trigger Sync B"]
     types:
       - completed
   workflow_dispatch:
