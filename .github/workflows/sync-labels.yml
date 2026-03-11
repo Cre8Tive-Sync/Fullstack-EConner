@@ -19,7 +19,7 @@ jobs:
 
             const query = `
               query {
-                user(login: "${owner}") {
+                organization(login: "${owner}") {
                   projectV2(number: ${projectNumber}) {
                     items(first: 100) {
                       nodes {
@@ -49,7 +49,7 @@ jobs:
             `;
 
             const result = await github.graphql(query);
-            const items = result.user.projectV2.items.nodes;
+            const items = result.organization.projectV2.items.nodes;
             const statusLabels = ['backlog', 'in-progress', 'in-review', 'done'];
 
             for (const item of items) {
