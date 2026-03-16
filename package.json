@@ -12,7 +12,8 @@
     "lint:eslint": "eslint . --fix --cache",
     "lint:oxlint": "oxlint . --fix",
     "preview": "vite preview",
-    "type-check": "vue-tsc --build"
+    "type-check": "vue-tsc --build",
+    "deploy": "deploy.bat"  
   },
   "dependencies": {
     "@react-three/fiber": "^9.5.0",
