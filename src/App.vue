@@ -8,8 +8,12 @@ import LocationView from './components/views/LocationView.vue'
 <template>
     <ARDisplay />
 
-   
-    <LocationView />
+
+  <!-- uncoment to test LocationView
+    
+  <LocationView />
+   -->
+    
 </template>
 
 <style scoped>
