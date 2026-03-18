@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import PanelContent from './PanelContent'
 
 const PANELS = [
-  { id: 'gallery', label: 'Gallery', angle: -60 },
+  { id: 'gallery', label: 'Gallery', angle: -41 },
   { id: 'info',    label: 'Info',    angle: 0   },
-  { id: 'video',   label: 'Video',   angle: 60  },
+  { id: 'video',   label: 'Video',   angle: 41  },
 ]
 
 export default function PanoramicView({ onClose }) {
