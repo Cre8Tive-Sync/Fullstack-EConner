@@ -2,10 +2,14 @@
 import HelloWorld from './components/HelloWorld.vue'
 import TheWelcome from './components/TheWelcome.vue'
 import ARDisplay from './components/ARDisplay.vue'
+import LocationView from './components/views/LocationView.vue'
 </script>
 
 <template>
     <ARDisplay />
+
+   
+    <LocationView />
 </template>
 
 <style scoped>
