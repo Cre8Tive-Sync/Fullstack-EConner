@@ -59,7 +59,7 @@ export default function PanoramicView({ onClose }) {
             key={panel.id}
             style={{
               ...styles.panel,
-              transform: `rotateY(${panel.angle}deg) translateZ(-420px)`,
+              transform: `rotateY(${panel.angle}deg) translateZ(-360px)`,
               opacity: 1,
               scale: '1',
             }}
