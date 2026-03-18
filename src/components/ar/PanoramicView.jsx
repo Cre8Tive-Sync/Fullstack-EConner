@@ -9,7 +9,6 @@ const PANELS = [
 
 export default function PanoramicView({ onClose }) {
   const [yaw, setYaw] = useState(0)         // gyroscope rotation
-  const [activePanel, setActivePanel] = useState('info')
   const baseYaw = useRef(null)              // initial gyro reading
   const lastGyro = useRef(0)
 
@@ -61,13 +60,10 @@ export default function PanoramicView({ onClose }) {
             style={{
               ...styles.panel,
               transform: `rotateY(${panel.angle}deg) translateZ(-420px)`,
-              opacity: activePanel === panel.id ? 1 : 0.5,
-              scale: activePanel === panel.id ? '1' : '0.92',
+              opacity: 1,
+              scale: '1',
             }}
-            onClick={(e) => {
-              e.stopPropagation()
-              setActivePanel(panel.id)
-            }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Panel tab label */}
             <div style={styles.panelTab}>{panel.label}</div>
