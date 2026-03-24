@@ -11,17 +11,17 @@ import { createElement } from 'react'
 export default defineComponent({
   data() {
     return {
-      _arRoot: null as Root | null
+      arRoot: null as Root | null
     }
   },
   mounted() {
     import('./ar/ARScene.jsx').then(({ default: ARScene }) => {
-      this._arRoot = createRoot(this.$refs.arMount as Element)
-      this._arRoot.render(createElement(ARScene))
+      this.arRoot = createRoot(this.$refs.arMount as Element)
+      this.arRoot?.render(createElement(ARScene))
     })
   },
   beforeUnmount() {
-    this._arRoot?.unmount()
+    this.arRoot?.unmount()
   }
 })
 </script>

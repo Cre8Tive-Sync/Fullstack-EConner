@@ -80,7 +80,11 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    hit ? onHit() : onMiss()
+    if (hit) {
+      onHit()
+    } else {
+      onMiss()
+    }
   })
 
   return null
