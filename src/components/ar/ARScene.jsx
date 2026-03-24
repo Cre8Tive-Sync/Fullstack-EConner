@@ -41,10 +41,13 @@ function CameraBackground() {
   )
 }
 
-// Wires device orientation to the Three.js camera
+// Wires device orientation to the Three.js camera using proper quaternion math
 function DeviceOrientationCamera() {
   const { camera } = useThree()
   const orient = useRef({ alpha: 0, beta: 90, gamma: 0 })
+  const targetQ = useRef(new THREE.Quaternion())
+  const currentQ = useRef(new THREE.Quaternion())
+  const initialized = useRef(false)
 
   useEffect(() => {
     const onOrientation = (e) => {
@@ -52,7 +55,6 @@ function DeviceOrientationCamera() {
     }
     window.addEventListener('deviceorientation', onOrientation)
 
-    // iOS 13+ requires explicit permission
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission().catch(console.warn)
     }
@@ -62,10 +64,32 @@ function DeviceOrientationCamera() {
 
   useFrame(() => {
     const { alpha, beta, gamma } = orient.current
-    camera.rotation.order = 'YXZ'
-    camera.rotation.x = THREE.MathUtils.degToRad(beta - 90)
-    camera.rotation.y = THREE.MathUtils.degToRad(-alpha)
-    camera.rotation.z = THREE.MathUtils.degToRad(-gamma)
+    const deg2rad = THREE.MathUtils.degToRad
+
+    // Standard device orientation → Three.js quaternion conversion
+    // (algorithm from Three.js DeviceOrientationControls)
+    const euler = new THREE.Euler(deg2rad(beta), deg2rad(alpha), deg2rad(-gamma), 'YXZ')
+    targetQ.current.setFromEuler(euler)
+
+    // Remap from device coords to screen coords: rotate -90° around X
+    const screenAdjust = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2)
+    targetQ.current.multiply(screenAdjust)
+
+    // Compensate for current screen orientation (portrait vs landscape)
+    const screenOrient = window.screen?.orientation?.angle || window.orientation || 0
+    const orientAdjust = new THREE.Quaternion()
+    orientAdjust.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -deg2rad(screenOrient))
+    targetQ.current.multiply(orientAdjust)
+
+    // Smooth interpolation to reduce jitter
+    if (!initialized.current) {
+      currentQ.current.copy(targetQ.current)
+      initialized.current = true
+    } else {
+      currentQ.current.slerp(targetQ.current, 0.3)
+    }
+
+    camera.quaternion.copy(currentQ.current)
   })
 
   return null
@@ -86,15 +110,25 @@ function CrosshairRaycaster({ onHit, onMiss }) {
   return null
 }
 
-// The floating interactive sphere
+// The floating interactive sphere — anchored in front of the user's initial facing direction
 function FloatingSphere({ isTargeted }) {
   const ref = useRef()
+  const { camera } = useThree()
+  const anchorPos = useRef(null)
 
   useFrame(({ clock }) => {
-    if (ref.current) {
-      ref.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.05
-      ref.current.rotation.y += 0.005
+    if (!ref.current) return
+
+    // On first frame, place the sphere 1.5m in front of wherever the camera is looking
+    if (!anchorPos.current) {
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+      anchorPos.current = dir.multiplyScalar(1.5)
     }
+
+    ref.current.position.x = anchorPos.current.x
+    ref.current.position.y = anchorPos.current.y + Math.sin(clock.elapsedTime * 0.8) * 0.05
+    ref.current.position.z = anchorPos.current.z
+    ref.current.rotation.y += 0.005
   })
 
   return (
