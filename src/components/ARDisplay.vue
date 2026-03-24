@@ -1,5 +1,5 @@
 <template>
-  <div ref="arMount" style="width: 100%; height: 100vh;" />
+  <div ref="arMount" style="width: 100%; height: 100vh"></div>
 </template>
 
 <script lang="ts">
@@ -11,7 +11,7 @@ import { createElement } from 'react'
 export default defineComponent({
   data() {
     return {
-      arRoot: null as Root | null
+      arRoot: null as Root | null,
     }
   },
   mounted() {
@@ -22,6 +22,6 @@ export default defineComponent({
   },
   beforeUnmount() {
     this.arRoot?.unmount()
-  }
+  },
 })
 </script>
