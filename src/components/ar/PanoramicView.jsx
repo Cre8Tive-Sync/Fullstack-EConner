@@ -1,25 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
+import { on, off } from '../../eventBridge'
 import PanelContent from './PanelContent'
 
 const PANELS = [
   { id: 'gallery', label: 'Gallery', angle: -40 },
-  { id: 'info',    label: 'Info',    angle: 0   },
-  { id: 'video',   label: 'Video',   angle: 40  },
+  { id: 'info', label: 'Info', angle: 0 },
+  { id: 'video', label: 'Video', angle: 40 },
 ]
 
 export default function PanoramicView({ onClose }) {
-  const [yaw, setYaw] = useState(0)         // gyroscope rotation
+  const [yaw, setYaw] = useState(0) // gyroscope rotation
   const [activePanel, setActivePanel] = useState('info')
-  const baseYaw = useRef(null)              // initial gyro reading
-  const lastGyro = useRef(0)
+  const baseYaw = useRef(null) // initial gyro reading
 
   // Gyroscope — move phone to rotate the arc
   useEffect(() => {
     const handleOrientation = (e) => {
-      const alpha = e.alpha ?? 0  // compass heading 0–360
+      const alpha = e.alpha ?? 0 // compass heading 0–360
 
       if (baseYaw.current === null) {
-        baseYaw.current = alpha   // lock starting position
+        baseYaw.current = alpha // lock starting position
       }
 
       let delta = alpha - baseYaw.current
@@ -27,7 +27,7 @@ export default function PanoramicView({ onClose }) {
       if (delta > 180) delta -= 360
       if (delta < -180) delta += 360
 
-      setYaw(-delta * 0.6)        // scale sensitivity
+      setYaw(-delta * 0.6) // scale sensitivity
     }
 
     window.addEventListener('deviceorientation', handleOrientation)
@@ -45,9 +45,15 @@ export default function PanoramicView({ onClose }) {
     if (e.target === e.currentTarget) onClose()
   }
 
+  // Listen for UI-originated close events (from Vue)
+  useEffect(() => {
+    const handler = () => onClose()
+    on('ui:closePanel', handler)
+    return () => off('ui:closePanel', handler)
+  }, [onClose])
+
   return (
     <div style={styles.overlay} onClick={handleBackdropTap}>
-
       {/* Arc container — rotates with gyroscope */}
       <div
         style={{
@@ -84,7 +90,9 @@ export default function PanoramicView({ onClose }) {
       </div>
 
       {/* Close button */}
-      <button style={styles.closeBtn} onClick={onClose}>✕</button>
+      <button style={styles.closeBtn} onClick={onClose}>
+        ✕
+      </button>
     </div>
   )
 }
