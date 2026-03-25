@@ -3,26 +3,54 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import PanoramicView from './PanoramicView'
 import ProximityIndicator from './ProximityIndicator'
+import GPSPlacedObject from './GPSPlacedObject'
 import { useGeolocation } from './hooks/useGeolocation'
 import { useNearbyPOIs } from './hooks/useNearbyPOIs'
+import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
 import { POIS } from './data/pois'
 
-// Shows rear camera as background
+// Apayao main landmark coordinates (Provincial Capitol area)
+const APAYAO_LAT = 18.3530
+const APAYAO_LNG = 121.6340
+
+// ─── AR.js Integration Components ────────────────────────────────────
+
+// Initializes AR.js and provides context to children
+function LocationARProvider({ onError, children }) {
+  const arState = useLocationARSetup({ onError })
+
+  return (
+    <LocationARContext.Provider value={arState}>
+      {children}
+    </LocationARContext.Provider>
+  )
+}
+
+// Updates webcam background + device orientation each frame
+function ARUpdater() {
+  const { orientControls } = useLocationAR()
+
+  useFrame(() => {
+    orientControls?.current?.update()
+  }, -1) // negative priority = runs before scene render
+
+  return null
+}
+
+// ─── Fallback Components (used when AR.js fails) ────────────────────
+
 function CameraBackground() {
   const videoRef = useRef()
 
   useEffect(() => {
-    if (!navigator.mediaDevices) {
-      console.warn('Camera requires HTTPS. Run with: npm run dev -- --https')
-      return
-    }
+    if (!navigator.mediaDevices) return
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' } })
       .then((stream) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          videoRef.current.play()
+          videoRef.current.play().catch(() => {})
         }
       })
       .catch((err) => console.warn('Camera access denied:', err))
@@ -36,14 +64,15 @@ function CameraBackground() {
     <video
       ref={videoRef}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      autoPlay
       playsInline
       muted
+      {...{ 'webkit-playsinline': 'true' }}
     />
   )
 }
 
-// Wires device orientation to the Three.js camera using proper quaternion math
-function DeviceOrientationCamera() {
+function FallbackDeviceOrientationCamera() {
   const { camera } = useThree()
   const orient = useRef({ alpha: 0, beta: 90, gamma: 0 })
   const targetQ = useRef(new THREE.Quaternion())
@@ -91,23 +120,8 @@ function DeviceOrientationCamera() {
   return null
 }
 
-// Crosshair raycaster — checks if center of screen hits the interactive text
-function CrosshairRaycaster({ onHit, onMiss }) {
-  const { camera, scene } = useThree()
-  const raycaster = useRef(new THREE.Raycaster())
-
-  useFrame(() => {
-    raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
-    const hits = raycaster.current.intersectObjects(scene.children, true)
-    const hit = hits.find((h) => h.object.userData.interactive)
-    hit ? onHit() : onMiss() || true
-  })
-
-  return null
-}
-
-// Screen-anchored floating "Apayao" text — always 1.5 units in front of camera
-function FloatingText({ isTargeted }) {
+// Screen-anchored text (fallback mode only)
+function FallbackFloatingText({ isTargeted }) {
   const ref = useRef()
 
   const texture = useMemo(() => {
@@ -116,17 +130,13 @@ function FloatingText({ isTargeted }) {
     canvas.height = 256
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, 1024, 256)
-
-    // Text shadow for depth
     ctx.shadowColor = 'rgba(0, 255, 204, 0.3)'
     ctx.shadowBlur = 20
-
     ctx.font = 'bold 120px sans-serif'
     ctx.fillStyle = '#ffffff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('Apayao', 512, 128)
-
     const tex = new THREE.CanvasTexture(canvas)
     tex.needsUpdate = true
     return tex
@@ -134,26 +144,68 @@ function FloatingText({ isTargeted }) {
 
   useFrame(({ camera, clock }) => {
     if (!ref.current) return
-
     const dir = new THREE.Vector3(0, 0, -1.5).applyQuaternion(camera.quaternion)
     ref.current.position.copy(camera.position).add(dir)
     ref.current.position.y += Math.sin(clock.elapsedTime * 0.6) * 0.03
   })
 
   return (
-    <sprite
-      ref={ref}
-      scale={[1.2, 0.3, 1]}
-      userData={{ interactive: true }}
-    >
-      <spriteMaterial
-        map={texture}
-        transparent
-        opacity={isTargeted ? 1 : 0.8}
-        depthTest={false}
-      />
+    <sprite ref={ref} scale={[1.2, 0.3, 1]} userData={{ interactive: true }}>
+      <spriteMaterial map={texture} transparent opacity={isTargeted ? 1 : 0.8} depthTest={false} />
     </sprite>
   )
+}
+
+// ─── Shared Components ───────────────────────────────────────────────
+
+// "Apayao" text sprite — GPS-placed in AR mode, no camera-following needed
+function ApayaoText({ isTargeted }) {
+  const ref = useRef()
+
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1024
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, 1024, 256)
+    ctx.shadowColor = 'rgba(0, 255, 204, 0.3)'
+    ctx.shadowBlur = 20
+    ctx.font = 'bold 120px sans-serif'
+    ctx.fillStyle = '#ffffff'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Apayao', 512, 128)
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.needsUpdate = true
+    return tex
+  }, [])
+
+  // Gentle floating animation
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      ref.current.position.y = 2 + Math.sin(clock.elapsedTime * 0.6) * 0.15
+    }
+  })
+
+  return (
+    <sprite ref={ref} scale={[8, 2, 1]} userData={{ interactive: true }}>
+      <spriteMaterial map={texture} transparent opacity={isTargeted ? 1 : 0.8} depthTest={false} />
+    </sprite>
+  )
+}
+
+function CrosshairRaycaster({ onHit, onMiss }) {
+  const { camera, scene } = useThree()
+  const raycaster = useRef(new THREE.Raycaster())
+
+  useFrame(() => {
+    raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
+    const hits = raycaster.current.intersectObjects(scene.children, true)
+    const hit = hits.find((h) => h.object.userData.interactive)
+    if (hit) { onHit() } else { onMiss() }
+  })
+
+  return null
 }
 
 function Crosshair({ active }) {
@@ -176,7 +228,6 @@ function Crosshair({ active }) {
   )
 }
 
-// Camera shutter button — activates when crosshair targets the text
 function ShutterButton({ targeted, onCapture }) {
   return (
     <button
@@ -199,34 +250,60 @@ function ShutterButton({ targeted, onCapture }) {
   )
 }
 
+// ─── Main ARScene ────────────────────────────────────────────────────
+
 export default function ARScene() {
   const [targeted, setTargeted] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [arFailed, setArFailed] = useState(false)
 
-  // GPS proximity detection (kept for future use + ProximityIndicator)
+  // GPS proximity detection (still used for ProximityIndicator)
   const { coords } = useGeolocation()
   const { closestPOI } = useNearbyPOIs(coords, POIS)
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
-
-      {/* Rear camera feed — always visible */}
       <CameraBackground />
 
       {/* Show proximity indicator if near a real POI */}
       {closestPOI && <ProximityIndicator poi={closestPOI} />}
 
-      {/* Three.js Canvas — transparent so camera shows through */}
+      {/* Fallback mode banner */}
+      {arFailed && (
+        <div style={styles.fallbackBanner}>
+          Demo mode — location AR unavailable
+        </div>
+      )}
+
+      {/* Three.js Canvas */}
       <Canvas
         style={{ position: 'absolute', inset: 0 }}
         camera={{ position: [0, 0, 0] }}
         gl={{ alpha: true }}
+        onCreated={({ gl }) => {
+          gl.setClearColor(0x000000, 0)
+        }}
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
-        <DeviceOrientationCamera />
-        <FloatingText isTargeted={targeted} />
+        {!arFailed ? (
+          // ── Real AR.js Mode ──
+          <LocationARProvider onError={() => setArFailed(true)}>
+            <ARUpdater />
+
+            <GPSPlacedObject lat={APAYAO_LAT} lng={APAYAO_LNG}>
+              <ApayaoText isTargeted={targeted} />
+            </GPSPlacedObject>
+          </LocationARProvider>
+        ) : (
+          // ── Fallback Simulated Mode ──
+          <>
+            <FallbackDeviceOrientationCamera />
+            <FallbackFloatingText isTargeted={targeted} />
+          </>
+        )}
+
         <CrosshairRaycaster
           onHit={() => setTargeted(true)}
           onMiss={() => setTargeted(false)}
@@ -267,5 +344,22 @@ const styles = {
     height: '52px',
     borderRadius: '50%',
     transition: 'background 0.2s, transform 0.15s',
+  },
+  fallbackBanner: {
+    position: 'fixed',
+    top: '1rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '0.4rem 1rem',
+    background: 'rgba(255, 165, 0, 0.2)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255, 165, 0, 0.4)',
+    borderRadius: '999px',
+    color: '#ffaa00',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    zIndex: 15,
+    pointerEvents: 'none',
   },
 }
