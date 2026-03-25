@@ -7,7 +7,7 @@ const PANELS = [
   { id: 'video',   label: 'Video',   angle: 41  },
 ]
 
-export default function PanoramicView({ onClose }) {
+export default function PanoramicView({ onClose, poi }) {
   const [yaw, setYaw] = useState(0)         // gyroscope rotation
   const baseYaw = useRef(null)              // initial gyro reading
   const lastGyro = useRef(0)
@@ -69,7 +69,7 @@ export default function PanoramicView({ onClose }) {
             <div style={styles.panelTab}>{panel.label}</div>
 
             {/* Panel content */}
-            <PanelContent type={panel.id} />
+            <PanelContent type={panel.id} poi={poi} />
           </div>
         ))}
       </div>

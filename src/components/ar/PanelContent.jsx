@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
-export default function PanelContent({ type }) {
-  if (type === 'gallery') return <GalleryPanel />
-  if (type === 'info')    return <InfoPanel />
-  if (type === 'video')   return <VideoPanel />
+export default function PanelContent({ type, poi }) {
+  if (type === 'gallery') return <GalleryPanel poi={poi} />
+  if (type === 'info')    return <InfoPanel poi={poi} />
+  if (type === 'video')   return <VideoPanel poi={poi} />
   return null
 }
 
@@ -14,23 +14,24 @@ const SAMPLE_IMAGES = [
   'https://picsum.photos/seed/ar3/400/300',
 ]
 
-function GalleryPanel() {
+function GalleryPanel({ poi }) {
+  const images = poi?.images?.length ? poi.images : SAMPLE_IMAGES
   const [current, setCurrent] = useState(0)
 
   const prev = (e) => {
     e.stopPropagation()
-    setCurrent((c) => (c - 1 + SAMPLE_IMAGES.length) % SAMPLE_IMAGES.length)
+    setCurrent((c) => (c - 1 + images.length) % images.length)
   }
 
   const next = (e) => {
     e.stopPropagation()
-    setCurrent((c) => (c + 1) % SAMPLE_IMAGES.length)
+    setCurrent((c) => (c + 1) % images.length)
   }
 
   return (
     <div style={panel.wrap}>
       <img
-        src={SAMPLE_IMAGES[current]}
+        src={images[current]}
         alt="gallery"
         style={panel.image}
         draggable={false}
@@ -40,7 +41,7 @@ function GalleryPanel() {
       <div style={panel.navRow}>
         <button style={panel.navBtn} onClick={prev}>‹</button>
         <span style={panel.dots}>
-          {SAMPLE_IMAGES.map((_, i) => (
+          {images.map((_, i) => (
             <span
               key={i}
               style={{ ...panel.dot, opacity: i === current ? 1 : 0.3 }}
@@ -54,37 +55,41 @@ function GalleryPanel() {
 }
 
 // --- Info Panel ---
-function InfoPanel() {
+function InfoPanel({ poi }) {
   return (
     <div style={{ ...panel.wrap, padding: '16px', overflowY: 'auto' }}>
-      <h2 style={panel.title}>About This Object</h2>
+      <h2 style={panel.title}>{poi?.name || 'About This Object'}</h2>
       <p style={panel.body}>
-        This floating marker represents a point of interest in your environment.
-        Move closer to interact or explore the attached media.
+        {poi?.description ||
+          'This floating marker represents a point of interest in your environment. Move closer to interact or explore the attached media.'}
       </p>
-      <div style={panel.tag}>📍 Location Tag</div>
-      <div style={panel.tag}>🕐 Last updated: today</div>
-      <div style={panel.tag}>👁 42 views</div>
+      {poi?.category && <div style={panel.tag}>{poi.category}</div>}
+      {poi?.distance != null && (
+        <div style={panel.tag}>{Math.round(poi.distance)}m away</div>
+      )}
     </div>
   )
 }
 
 // --- Video Panel ---
-function VideoPanel() {
+function VideoPanel({ poi }) {
+  const videoSrc = poi?.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'
+
   return (
     <div style={{ ...panel.wrap, display: 'flex', flexDirection: 'column' }}>
       <video
         style={panel.video}
         controls
-        playsInline           // important for mobile
+        playsInline
         preload="metadata"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Replace with real video src */}
-        <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+        <source src={videoSrc} type="video/mp4" />
       </video>
       <div style={{ padding: '12px' }}>
-        <p style={panel.body}>Sample video content. Replace with your own source.</p>
+        <p style={panel.body}>
+          {poi?.name ? `Video content for ${poi.name}.` : 'Sample video content.'}
+        </p>
       </div>
     </div>
   )
