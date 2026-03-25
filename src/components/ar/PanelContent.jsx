@@ -1,101 +1,87 @@
-import { useState } from 'react'
-
-export default function PanelContent({ type, poi }) {
-  if (type === 'gallery') return <GalleryPanel poi={poi} />
-  if (type === 'info')    return <InfoPanel poi={poi} />
-  if (type === 'video')   return <VideoPanel poi={poi} />
+export default function PanelContent({ type }) {
+  if (type === 'attractions') return <AttractionsPanel />
+  if (type === 'dining')      return <DiningPanel />
+  if (type === 'activities')  return <ActivitiesPanel />
   return null
 }
 
-// --- Gallery Panel ---
-const SAMPLE_IMAGES = [
-  'https://picsum.photos/seed/ar1/400/300',
-  'https://picsum.photos/seed/ar2/400/300',
-  'https://picsum.photos/seed/ar3/400/300',
+// --- Placeholder data (will be replaced by scraper data) ---
+
+const ATTRACTIONS = [
+  { name: 'Dupag Rock Formation', desc: 'Stunning natural rock pillars along the Apayao River', img: 'https://picsum.photos/seed/dupag/400/200' },
+  { name: 'Lam-Lamig Cave', desc: 'Underground river cave system with crystal-clear waters', img: 'https://picsum.photos/seed/lamlamig/400/200' },
+  { name: 'Marag Waterfalls', desc: 'Multi-tiered cascading falls surrounded by lush forest', img: 'https://picsum.photos/seed/marag/400/200' },
+  { name: 'Bayugao Falls', desc: 'Hidden gem waterfall deep in the Cordillera highlands', img: 'https://picsum.photos/seed/bayugao/400/200' },
 ]
 
-function GalleryPanel({ poi }) {
-  const images = poi?.images?.length ? poi.images : SAMPLE_IMAGES
-  const [current, setCurrent] = useState(0)
+const RESTAURANTS = [
+  { name: 'Kusina ni Manang', cuisine: 'Local Filipino', desc: 'Home-cooked Ilocano and Cordilleran dishes' },
+  { name: 'Apayao River Grill', cuisine: 'Seafood & Grill', desc: 'Fresh river fish and grilled meats' },
+  { name: 'Cafe Cordillera', cuisine: 'Coffee & Snacks', desc: 'Local arabica coffee and pastries' },
+]
 
-  const prev = (e) => {
-    e.stopPropagation()
-    setCurrent((c) => (c - 1 + images.length) % images.length)
-  }
+const ACTIVITIES = [
+  { name: 'River Trekking', desc: 'Navigate the Apayao River on foot through stunning gorges', icon: 'W' },
+  { name: 'Cave Exploration', desc: 'Guided spelunking through underground river systems', icon: 'C' },
+  { name: 'Cultural Immersion', desc: 'Visit indigenous Isnag and Malaueg communities', icon: 'P' },
+  { name: 'Bamboo Rafting', desc: 'Float downstream on traditional bamboo rafts', icon: 'R' },
+]
 
-  const next = (e) => {
-    e.stopPropagation()
-    setCurrent((c) => (c + 1) % images.length)
-  }
+// --- Panels ---
 
+function AttractionsPanel() {
   return (
-    <div style={panel.wrap}>
-      <img
-        src={images[current]}
-        alt="gallery"
-        style={panel.image}
-        draggable={false}
-      />
-
-      {/* Swipe nav */}
-      <div style={panel.navRow}>
-        <button style={panel.navBtn} onClick={prev}>‹</button>
-        <span style={panel.dots}>
-          {images.map((_, i) => (
-            <span
-              key={i}
-              style={{ ...panel.dot, opacity: i === current ? 1 : 0.3 }}
-            />
-          ))}
-        </span>
-        <button style={panel.navBtn} onClick={next}>›</button>
-      </div>
+    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
+      <h2 style={panel.title}>Top Attractions</h2>
+      {ATTRACTIONS.map((item) => (
+        <div key={item.name} style={panel.card}>
+          <img src={item.img} alt={item.name} style={panel.cardImg} draggable={false} />
+          <div style={panel.cardBody}>
+            <span style={panel.cardName}>{item.name}</span>
+            <span style={panel.cardDesc}>{item.desc}</span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-// --- Info Panel ---
-function InfoPanel({ poi }) {
+function DiningPanel() {
   return (
-    <div style={{ ...panel.wrap, padding: '16px', overflowY: 'auto' }}>
-      <h2 style={panel.title}>{poi?.name || 'About This Object'}</h2>
-      <p style={panel.body}>
-        {poi?.description ||
-          'This floating marker represents a point of interest in your environment. Move closer to interact or explore the attached media.'}
-      </p>
-      {poi?.category && <div style={panel.tag}>{poi.category}</div>}
-      {poi?.distance != null && (
-        <div style={panel.tag}>{Math.round(poi.distance)}m away</div>
-      )}
+    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
+      <h2 style={panel.title}>Food & Dining</h2>
+      {RESTAURANTS.map((item) => (
+        <div key={item.name} style={panel.card}>
+          <div style={panel.cuisineBadge}>{item.cuisine}</div>
+          <div style={panel.cardBody}>
+            <span style={panel.cardName}>{item.name}</span>
+            <span style={panel.cardDesc}>{item.desc}</span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-// --- Video Panel ---
-function VideoPanel({ poi }) {
-  const videoSrc = poi?.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'
-
+function ActivitiesPanel() {
   return (
-    <div style={{ ...panel.wrap, display: 'flex', flexDirection: 'column' }}>
-      <video
-        style={panel.video}
-        controls
-        playsInline
-        preload="metadata"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <source src={videoSrc} type="video/mp4" />
-      </video>
-      <div style={{ padding: '12px' }}>
-        <p style={panel.body}>
-          {poi?.name ? `Video content for ${poi.name}.` : 'Sample video content.'}
-        </p>
-      </div>
+    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
+      <h2 style={panel.title}>Activities</h2>
+      {ACTIVITIES.map((item) => (
+        <div key={item.name} style={panel.card}>
+          <div style={panel.activityIcon}>{item.icon}</div>
+          <div style={panel.cardBody}>
+            <span style={panel.cardName}>{item.name}</span>
+            <span style={panel.cardDesc}>{item.desc}</span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-// Shared panel styles
+// --- Styles ---
+
 const panel = {
   wrap: {
     width: '100%',
@@ -104,62 +90,76 @@ const panel = {
     flexDirection: 'column',
     color: '#fff',
   },
-  image: {
-    width: '100%',
-    height: '220px',
-    objectFit: 'cover',
-    display: 'block',
-  },
-  navRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 16px',
-  },
-  navBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#fff',
-    fontSize: '1.6rem',
-    cursor: 'pointer',
-    padding: '0 8px',
-  },
-  dots: {
-    display: 'flex',
-    gap: '6px',
-    alignItems: 'center',
-  },
-  dot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    background: '#fff',
-    display: 'inline-block',
-  },
   title: {
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '1rem',
+    fontSize: '0.85rem',
     fontWeight: 700,
     marginBottom: '10px',
     color: '#fff',
+    letterSpacing: '0.02em',
   },
-  body: {
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.82rem',
-    color: 'rgba(255,255,255,0.65)',
-    lineHeight: 1.6,
-    marginBottom: '14px',
-  },
-  tag: {
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.75rem',
-    color: 'rgba(255,255,255,0.5)',
+  card: {
+    display: 'flex',
+    gap: '10px',
+    padding: '8px',
     marginBottom: '8px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
   },
-  video: {
-    width: '100%',
-    height: '200px',
+  cardImg: {
+    width: '70px',
+    height: '50px',
     objectFit: 'cover',
-    background: '#000',
+    borderRadius: '6px',
+    flexShrink: 0,
+  },
+  cardBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  cardName: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    color: '#fff',
+  },
+  cardDesc: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.65rem',
+    color: 'rgba(255, 255, 255, 0.5)',
+    lineHeight: 1.4,
+  },
+  cuisineBadge: {
+    padding: '4px 8px',
+    background: 'rgba(0, 255, 204, 0.1)',
+    border: '1px solid rgba(0, 255, 204, 0.2)',
+    borderRadius: '6px',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.6rem',
+    fontWeight: 600,
+    color: '#00ffcc',
+    whiteSpace: 'nowrap',
+    alignSelf: 'center',
+    flexShrink: 0,
+  },
+  activityIcon: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '8px',
+    background: 'rgba(0, 255, 204, 0.1)',
+    border: '1px solid rgba(0, 255, 204, 0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    color: '#00ffcc',
+    flexShrink: 0,
+    alignSelf: 'center',
   },
 }

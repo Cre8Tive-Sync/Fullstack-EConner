@@ -2,7 +2,7 @@
   <div ref="arMount" style="width: 100%; height: 100vh;" />
 </template>
 
-<script>
+<script lang="ts">
 import { createRoot } from 'react-dom/client'
 import { createElement } from 'react'
 

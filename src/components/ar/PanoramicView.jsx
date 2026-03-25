@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import PanelContent from './PanelContent'
 
 const PANELS = [
-  { id: 'gallery', label: 'Gallery', angle: -41 },
-  { id: 'info',    label: 'Info',    angle: 0   },
-  { id: 'video',   label: 'Video',   angle: 41  },
+  { id: 'attractions', label: 'Top Attractions', angle: -41 },
+  { id: 'dining',      label: 'Food & Dining',   angle: 0   },
+  { id: 'activities',  label: 'Activities',       angle: 41  },
 ]
 
-export default function PanoramicView({ onClose, poi }) {
+export default function PanoramicView({ onClose }) {
   const [yaw, setYaw] = useState(0)         // gyroscope rotation
   const baseYaw = useRef(null)              // initial gyro reading
-  const lastGyro = useRef(0)
 
   // Gyroscope — move phone to rotate the arc
   useEffect(() => {
@@ -69,7 +68,7 @@ export default function PanoramicView({ onClose, poi }) {
             <div style={styles.panelTab}>{panel.label}</div>
 
             {/* Panel content */}
-            <PanelContent type={panel.id} poi={poi} />
+            <PanelContent type={panel.id} />
           </div>
         ))}
       </div>

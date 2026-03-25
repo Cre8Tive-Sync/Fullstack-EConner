@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import PanoramicView from './PanoramicView'
 import ProximityIndicator from './ProximityIndicator'
-import NearbyList from './NearbyList'
 import { useGeolocation } from './hooks/useGeolocation'
 import { useNearbyPOIs } from './hooks/useNearbyPOIs'
 import { POIS } from './data/pois'
@@ -68,21 +67,17 @@ function DeviceOrientationCamera() {
     const { alpha, beta, gamma } = orient.current
     const deg2rad = THREE.MathUtils.degToRad
 
-    // Standard device orientation -> Three.js quaternion conversion
     const euler = new THREE.Euler(deg2rad(beta), deg2rad(alpha), deg2rad(-gamma), 'YXZ')
     targetQ.current.setFromEuler(euler)
 
-    // Remap from device coords to screen coords: rotate -90 deg around X
     const screenAdjust = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2)
     targetQ.current.multiply(screenAdjust)
 
-    // Compensate for current screen orientation (portrait vs landscape)
     const screenOrient = window.screen?.orientation?.angle || window.orientation || 0
     const orientAdjust = new THREE.Quaternion()
     orientAdjust.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -deg2rad(screenOrient))
     targetQ.current.multiply(orientAdjust)
 
-    // Smooth interpolation to reduce jitter
     if (!initialized.current) {
       currentQ.current.copy(targetQ.current)
       initialized.current = true
@@ -96,7 +91,7 @@ function DeviceOrientationCamera() {
   return null
 }
 
-// Crosshair raycaster — checks if center of screen hits the sphere
+// Crosshair raycaster — checks if center of screen hits the interactive text
 function CrosshairRaycaster({ onHit, onMiss }) {
   const { camera, scene } = useThree()
   const raycaster = useRef(new THREE.Raycaster())
@@ -105,40 +100,59 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    hit ? onHit() : onMiss()
+    hit ? onHit() : onMiss() || true
   })
 
   return null
 }
 
-// Screen-anchored floating sphere — always stays 1.5 units in front of camera
-function FloatingSphere({ isTargeted, poi }) {
+// Screen-anchored floating "Apayao" text — always 1.5 units in front of camera
+function FloatingText({ isTargeted }) {
   const ref = useRef()
 
-  const color = poi?.sphereColor || '#4488ff'
-  const emissive = poi?.sphereEmissive || '#1133aa'
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1024
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, 1024, 256)
+
+    // Text shadow for depth
+    ctx.shadowColor = 'rgba(0, 255, 204, 0.3)'
+    ctx.shadowBlur = 20
+
+    ctx.font = 'bold 120px sans-serif'
+    ctx.fillStyle = '#ffffff'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Apayao', 512, 128)
+
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.needsUpdate = true
+    return tex
+  }, [])
 
   useFrame(({ camera, clock }) => {
     if (!ref.current) return
 
-    // Always position in front of the camera
     const dir = new THREE.Vector3(0, 0, -1.5).applyQuaternion(camera.quaternion)
     ref.current.position.copy(camera.position).add(dir)
-    ref.current.position.y += Math.sin(clock.elapsedTime * 0.8) * 0.05
-    ref.current.rotation.y += 0.005
+    ref.current.position.y += Math.sin(clock.elapsedTime * 0.6) * 0.03
   })
 
   return (
-    <mesh ref={ref} position={[0, 0, -1.5]} userData={{ interactive: true }}>
-      <sphereGeometry args={[0.15, 32, 32]} />
-      <meshStandardMaterial
-        color={isTargeted ? '#00ffcc' : color}
-        emissive={isTargeted ? '#00ffcc' : emissive}
-        emissiveIntensity={isTargeted ? 0.6 : 0.2}
-        roughness={0.2}
-        metalness={0.8}
+    <sprite
+      ref={ref}
+      scale={[1.2, 0.3, 1]}
+      userData={{ interactive: true }}
+    >
+      <spriteMaterial
+        map={texture}
+        transparent
+        opacity={isTargeted ? 1 : 0.8}
+        depthTest={false}
       />
-    </mesh>
+    </sprite>
   )
 }
 
@@ -162,19 +176,36 @@ function Crosshair({ active }) {
   )
 }
 
+// Camera shutter button — activates when crosshair targets the text
+function ShutterButton({ targeted, onCapture }) {
+  return (
+    <button
+      style={{
+        ...styles.shutter,
+        opacity: targeted ? 1 : 0.4,
+        cursor: targeted ? 'pointer' : 'default',
+      }}
+      disabled={!targeted}
+      onClick={onCapture}
+    >
+      <div
+        style={{
+          ...styles.shutterInner,
+          background: targeted ? '#00ffcc' : '#fff',
+          transform: targeted ? 'scale(1)' : 'scale(0.92)',
+        }}
+      />
+    </button>
+  )
+}
+
 export default function ARScene() {
   const [targeted, setTargeted] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
 
-  // GPS proximity detection
-  const { coords, error: geoError } = useGeolocation()
-  const { closestPOI, allPOIs } = useNearbyPOIs(coords, POIS)
-
-  // Reset interaction state when the active POI changes
-  useEffect(() => {
-    setTargeted(false)
-    setPanelOpen(false)
-  }, [closestPOI?.id])
+  // GPS proximity detection (kept for future use + ProximityIndicator)
+  const { coords } = useGeolocation()
+  const { closestPOI } = useNearbyPOIs(coords, POIS)
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
@@ -182,59 +213,59 @@ export default function ARScene() {
       {/* Rear camera feed — always visible */}
       <CameraBackground />
 
-      {closestPOI ? (
-        <>
-          {/* POI is nearby — show AR overlay */}
-          <ProximityIndicator poi={closestPOI} />
+      {/* Show proximity indicator if near a real POI */}
+      {closestPOI && <ProximityIndicator poi={closestPOI} />}
 
-          <Canvas
-            style={{ position: 'absolute', inset: 0 }}
-            camera={{ position: [0, 0, 0] }}
-            gl={{ alpha: true }}
-          >
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[2, 4, 2]} intensity={1} />
+      {/* Three.js Canvas — transparent so camera shows through */}
+      <Canvas
+        style={{ position: 'absolute', inset: 0 }}
+        camera={{ position: [0, 0, 0] }}
+        gl={{ alpha: true }}
+      >
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[2, 4, 2]} intensity={1} />
 
-            <DeviceOrientationCamera />
-            <FloatingSphere isTargeted={targeted} poi={closestPOI} />
-            <CrosshairRaycaster
-              onHit={() => setTargeted(true)}
-              onMiss={() => setTargeted(false)}
-            />
-          </Canvas>
+        <DeviceOrientationCamera />
+        <FloatingText isTargeted={targeted} />
+        <CrosshairRaycaster
+          onHit={() => setTargeted(true)}
+          onMiss={() => setTargeted(false)}
+        />
+      </Canvas>
 
-          <Crosshair active={targeted} />
+      <Crosshair active={targeted} />
 
-          {targeted && !panelOpen && (
-            <button style={styles.openButton} onClick={() => setPanelOpen(true)}>
-              <span style={styles.openIcon}>+</span> View Details
-            </button>
-          )}
-
-          {panelOpen && (
-            <PanoramicView poi={closestPOI} onClose={() => setPanelOpen(false)} />
-          )}
-        </>
-      ) : (
-        /* No POI nearby — show list of all POIs with distances */
-        <NearbyList pois={allPOIs} geoError={geoError} />
+      {!panelOpen && (
+        <ShutterButton targeted={targeted} onCapture={() => setPanelOpen(true)} />
       )}
+
+      {panelOpen && <PanoramicView onClose={() => setPanelOpen(false)} />}
     </div>
   )
 }
 
 const styles = {
-  openButton: {
-    position: 'fixed', bottom: '3rem', left: '50%',
+  shutter: {
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
     transform: 'translateX(-50%)',
-    display: 'flex', alignItems: 'center', gap: '8px',
-    padding: '0.9rem 2rem',
-    background: 'rgba(0, 255, 204, 0.15)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid #00ffcc', borderRadius: '999px',
-    color: '#00ffcc', fontSize: '1rem',
-    fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
-    cursor: 'pointer', zIndex: 20, letterSpacing: '0.03em',
+    width: '68px',
+    height: '68px',
+    borderRadius: '50%',
+    border: '3px solid rgba(255, 255, 255, 0.8)',
+    background: 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    zIndex: 20,
+    transition: 'opacity 0.2s',
   },
-  openIcon: { fontSize: '1.2rem' },
+  shutterInner: {
+    width: '52px',
+    height: '52px',
+    borderRadius: '50%',
+    transition: 'background 0.2s, transform 0.15s',
+  },
 }
