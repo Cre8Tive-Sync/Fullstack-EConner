@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(find /d/Projekts/Cre8Tive Sync/Fullstack-EConner/src -name *.vue -o -name *.jsx -o -name *.tsx)",
+      "Bash(grep -r import.*from.*vue /d/Projekts/Cre8Tive Sync/Fullstack-EConner/src --include=*.ts --include=*.js --include=*.tsx --include=*.jsx --include=*.vue)",
+      "Bash(grep -r import.*from.*react /d/Projekts/Cre8Tive Sync/Fullstack-EConner/src --include=*.ts --include=*.js --include=*.tsx --include=*.jsx --include=*.vue)",
+      "Bash(find /d/Projekts/Cre8Tive Sync/Fullstack-EConner -not -path */node_modules/* -not -path */dist/* -type d -o -type f -name *.vue -o -name *.jsx -o -name *.tsx -o -name *.json)"
+    ]
+  }
+}

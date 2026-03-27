@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { XR, createXRStore } from '@react-three/xr'
 import * as THREE from 'three'
 import PanoramicView from './PanoramicView'
-import { emit } from '../../eventBridge'
 
 const xrStore = createXRStore()
 
@@ -12,17 +10,14 @@ function CameraBackground() {
   const videoRef = useRef()
 
   useEffect(() => {
-    if (!navigator.mediaDevices) {
-      console.warn('Camera requires HTTPS. Run with: npm run dev -- --https')
-      return
-    }
+    if (!navigator.mediaDevices) return
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' } })
       .then((stream) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          videoRef.current.play()
+          videoRef.current.play().catch(() => {})
         }
       })
       .catch((err) => console.warn('Camera access denied:', err))
@@ -36,16 +31,20 @@ function CameraBackground() {
     <video
       ref={videoRef}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      autoPlay
       playsInline
       muted
+      {...{ 'webkit-playsinline': 'true' }}
     />
   )
 }
 
-// Wires device orientation to the Three.js camera
-function DeviceOrientationCamera() {
+function FallbackDeviceOrientationCamera() {
   const { camera } = useThree()
   const orient = useRef({ alpha: 0, beta: 90, gamma: 0 })
+  const targetQ = useRef(new THREE.Quaternion())
+  const currentQ = useRef(new THREE.Quaternion())
+  const initialized = useRef(false)
 
   useEffect(() => {
     const onOrientation = (e) => {
@@ -53,7 +52,6 @@ function DeviceOrientationCamera() {
     }
     window.addEventListener('deviceorientation', onOrientation)
 
-    // iOS 13+ requires explicit permission
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission().catch(console.warn)
     }
@@ -63,16 +61,57 @@ function DeviceOrientationCamera() {
 
   useFrame(() => {
     const { alpha, beta, gamma } = orient.current
-    camera.rotation.order = 'YXZ'
-    camera.rotation.x = THREE.MathUtils.degToRad(beta - 90)
-    camera.rotation.y = THREE.MathUtils.degToRad(-alpha)
-    camera.rotation.z = THREE.MathUtils.degToRad(-gamma)
+    const deg2rad = THREE.MathUtils.degToRad
+
+    const euler = new THREE.Euler(deg2rad(beta), deg2rad(alpha), deg2rad(-gamma), 'YXZ')
+    targetQ.current.setFromEuler(euler)
+
+    const screenAdjust = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2)
+    targetQ.current.multiply(screenAdjust)
+
+    const screenOrient = window.screen?.orientation?.angle || window.orientation || 0
+    const orientAdjust = new THREE.Quaternion()
+    orientAdjust.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -deg2rad(screenOrient))
+    targetQ.current.multiply(orientAdjust)
+
+    if (!initialized.current) {
+      currentQ.current.copy(targetQ.current)
+      initialized.current = true
+    } else {
+      currentQ.current.slerp(targetQ.current, 0.3)
+    }
+
+    camera.quaternion.copy(currentQ.current)
   })
 
   return null
 }
 
-// Crosshair raycaster — checks if center of screen hits the sphere
+// Fallback: place POI spheres in an arc around camera for desktop testing
+function FallbackPOIMarkers({ pois, targetedPoiId }) {
+  const groupRef = useRef()
+  const count = pois.length
+  const arcSpan = Math.PI * 0.8 // 144-degree arc in front
+  const radius = 8
+
+  return (
+    <group ref={groupRef}>
+      {pois.map((poi, i) => {
+        const angle = -arcSpan / 2 + (arcSpan / Math.max(count - 1, 1)) * i
+        const x = Math.sin(angle) * radius
+        const z = -Math.cos(angle) * radius
+        return (
+          <group key={poi.id} position={[x, 0, z]}>
+            <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+// ─── Shared Components ───────────────────────────────────────────────
+
 function CrosshairRaycaster({ onHit, onMiss }) {
   const { camera, scene } = useThree()
   const raycaster = useRef(new THREE.Raycaster())
@@ -81,39 +120,10 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    if (hit) {
-      onHit()
-    } else {
-      onMiss()
-    }
+    hit ? onHit() : onMiss()
   })
 
   return null
-}
-
-// The floating interactive sphere
-function FloatingSphere({ isTargeted }) {
-  const ref = useRef()
-
-  useFrame(({ clock }) => {
-    if (ref.current) {
-      ref.current.position.y = Math.sin(clock.elapsedTime * 0.8) * 0.05
-      ref.current.rotation.y += 0.005
-    }
-  })
-
-  return (
-    <mesh ref={ref} position={[0, 0, -1.5]} userData={{ interactive: true }}>
-      <sphereGeometry args={[0.15, 32, 32]} />
-      <meshStandardMaterial
-        color={isTargeted ? '#00ffcc' : '#4488ff'}
-        emissive={isTargeted ? '#00ffcc' : '#1133aa'}
-        emissiveIntensity={isTargeted ? 0.6 : 0.2}
-        roughness={0.2}
-        metalness={0.8}
-      />
-    </mesh>
-  )
 }
 
 function Crosshair({ active }) {
@@ -175,60 +185,94 @@ function Crosshair({ active }) {
   )
 }
 
+function ShutterButton({ targeted, onCapture }) {
+  return (
+    <button
+      style={{
+        ...styles.shutter,
+        opacity: targeted ? 1 : 0.4,
+        cursor: targeted ? 'pointer' : 'default',
+      }}
+      disabled={!targeted}
+      onClick={onCapture}
+    >
+      <div
+        style={{
+          ...styles.shutterInner,
+          background: targeted ? '#00ffcc' : '#fff',
+          transform: targeted ? 'scale(1)' : 'scale(0.92)',
+        }}
+      />
+    </button>
+  )
+}
+
+// ─── GPS-placed POIs with distance clamping ─────────────────────────
+
+function ClampedPOIs({ pois, coords, targetedPoiId }) {
+  const clampedPois = useMemo(() => {
+    if (!coords) return pois.map((poi) => ({ poi, lat: poi.lat, lng: poi.lng }))
+
+    return pois.map((poi) => {
+      const clamped = getClampedCoords(coords.latitude, coords.longitude, poi, MAX_MARKER_DISTANCE)
+      return { poi, lat: clamped.lat, lng: clamped.lng }
+    })
+  }, [pois, coords?.latitude, coords?.longitude])
+
+  return (
+    <>
+      {clampedPois.map(({ poi, lat, lng }) => (
+        <GPSPlacedObject key={poi.id} lat={lat} lng={lng}>
+          <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
+        </GPSPlacedObject>
+      ))}
+    </>
+  )
+}
+
+// ─── Main ARScene ────────────────────────────────────────────────────
+
 export default function ARScene() {
   const [targeted, setTargeted] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
-
-  // Emit targeted state only when it changes
-  useEffect(() => {
-    emit('ar:targeted', { targeted })
-  }, [targeted])
-
-  // Emit panel open/close events
-  useEffect(() => {
-    emit('ar:panelOpened', { open: panelOpen })
-  }, [panelOpen])
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* Rear camera feed as background */}
       <CameraBackground />
+
       {/* AR Enter Button (WebXR — only works over HTTPS) */}
-      <button
-        style={styles.arButton}
-        onClick={() => {
-          xrStore.enterAR()
-          emit('ar:enter', {})
-        }}
-      >
+      <button style={styles.arButton} onClick={() => xrStore.enterAR()}>
         Enter AR
       </button>
+
       {/* Three.js Canvas — transparent so camera shows through */}
       <Canvas
         style={{ position: 'absolute', inset: 0 }}
         camera={{ position: [0, 0, 0] }}
         gl={{ alpha: true }}
+        onCreated={({ gl }) => {
+          gl.setClearColor(0x000000, 0)
+        }}
       >
         <XR store={xrStore}>
           <ambientLight intensity={0.6} />
           <directionalLight position={[2, 4, 2]} intensity={1} />
+
           <DeviceOrientationCamera />
           <FloatingSphere isTargeted={targeted} />
           <CrosshairRaycaster onHit={() => setTargeted(true)} onMiss={() => setTargeted(false)} />
         </XR>
       </Canvas>
+
       <Crosshair active={targeted} />
+
       {targeted && !panelOpen && (
-        <button
-          style={styles.openButton}
-          onClick={() => {
-            setPanelOpen(true)
-            emit('ar:select', { source: 'react' })
-          }}
-        >
+        <button style={styles.openButton} onClick={() => setPanelOpen(true)}>
           <span style={styles.openIcon}>⊕</span> View Details
         </button>
       )}
+
       {panelOpen && <PanoramicView onClose={() => setPanelOpen(false)} />}
     </div>
   )
