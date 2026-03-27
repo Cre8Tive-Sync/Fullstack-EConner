@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ar-js-org/ar.js": "^3.4.8",
+    "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@react-three/xr": "^6.6.29",
     "@vitejs/plugin-react": "^5.1.4",

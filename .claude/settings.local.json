@@ -3,7 +3,8 @@
     "allow": [
       "WebSearch",
       "Bash(npx vite:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

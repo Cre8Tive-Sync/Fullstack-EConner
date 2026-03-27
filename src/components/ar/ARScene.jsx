@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import PanoramicView from './PanoramicView'
+import POIPanels3D from './POIPanels3D'
 import ProximityIndicator from './ProximityIndicator'
 import GPSPlacedObject from './GPSPlacedObject'
 import POIMarker from './POIMarker'
@@ -287,13 +287,22 @@ export default function ARScene() {
           </>
         )}
 
-        <CrosshairRaycaster
-          onHit={(poiId) => setTargetedPoiId(poiId)}
-          onMiss={() => setTargetedPoiId(null)}
-        />
+        {/* Disable raycaster when panels are open */}
+        {!activePoi && (
+          <CrosshairRaycaster
+            onHit={(poiId) => setTargetedPoiId(poiId)}
+            onMiss={() => setTargetedPoiId(null)}
+          />
+        )}
+
+        {/* 3D panels rendered inside the scene */}
+        {activePoi && (
+          <POIPanels3D poi={activePoi} onClose={() => setActivePoi(null)} />
+        )}
       </Canvas>
 
-      <Crosshair active={targeted} />
+      {/* Hide crosshair + UI when panels are open */}
+      {!activePoi && <Crosshair active={targeted} />}
 
       {/* POI name hint when targeted */}
       {targeted && !activePoi && (
@@ -304,10 +313,6 @@ export default function ARScene() {
 
       {!activePoi && (
         <ShutterButton targeted={targeted} onCapture={handleCapture} />
-      )}
-
-      {activePoi && (
-        <PanoramicView poi={activePoi} onClose={() => setActivePoi(null)} />
       )}
     </div>
   )
