@@ -1,86 +1,132 @@
-export default function PanelContent({ type }) {
-  if (type === 'attractions') return <AttractionsPanel />
-  if (type === 'dining')      return <DiningPanel />
-  if (type === 'activities')  return <ActivitiesPanel />
+export default function PanelContent({ type, poi }) {
+  if (type === 'overview') return <OverviewPanel poi={poi} />
+  if (type === 'gallery')  return <GalleryPanel poi={poi} />
+  if (type === 'details')  return <DetailsPanel poi={poi} />
   return null
 }
 
-// --- Placeholder data (will be replaced by scraper data) ---
+// ─── Overview Panel ──────────────────────────────────────────────────
 
-const ATTRACTIONS = [
-  { name: 'Dupag Rock Formation', desc: 'Stunning natural rock pillars along the Apayao River', img: 'https://picsum.photos/seed/dupag/400/200' },
-  { name: 'Lam-Lamig Cave', desc: 'Underground river cave system with crystal-clear waters', img: 'https://picsum.photos/seed/lamlamig/400/200' },
-  { name: 'Marag Waterfalls', desc: 'Multi-tiered cascading falls surrounded by lush forest', img: 'https://picsum.photos/seed/marag/400/200' },
-  { name: 'Bayugao Falls', desc: 'Hidden gem waterfall deep in the Cordillera highlands', img: 'https://picsum.photos/seed/bayugao/400/200' },
-]
-
-const RESTAURANTS = [
-  { name: 'Kusina ni Manang', cuisine: 'Local Filipino', desc: 'Home-cooked Ilocano and Cordilleran dishes' },
-  { name: 'Apayao River Grill', cuisine: 'Seafood & Grill', desc: 'Fresh river fish and grilled meats' },
-  { name: 'Cafe Cordillera', cuisine: 'Coffee & Snacks', desc: 'Local arabica coffee and pastries' },
-]
-
-const ACTIVITIES = [
-  { name: 'River Trekking', desc: 'Navigate the Apayao River on foot through stunning gorges', icon: 'W' },
-  { name: 'Cave Exploration', desc: 'Guided spelunking through underground river systems', icon: 'C' },
-  { name: 'Cultural Immersion', desc: 'Visit indigenous Isnag and Malaueg communities', icon: 'P' },
-  { name: 'Bamboo Rafting', desc: 'Float downstream on traditional bamboo rafts', icon: 'R' },
-]
-
-// --- Panels ---
-
-function AttractionsPanel() {
+function OverviewPanel({ poi }) {
   return (
     <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
-      <h2 style={panel.title}>Top Attractions</h2>
-      {ATTRACTIONS.map((item) => (
-        <div key={item.name} style={panel.card}>
-          <img src={item.img} alt={item.name} style={panel.cardImg} draggable={false} />
-          <div style={panel.cardBody}>
-            <span style={panel.cardName}>{item.name}</span>
-            <span style={panel.cardDesc}>{item.desc}</span>
-          </div>
+      {/* Category badge */}
+      <div style={{ ...panel.categoryBadge, borderColor: poi.sphereColor, color: poi.sphereColor }}>
+        {poi.category}
+      </div>
+
+      {/* Hero image */}
+      {poi.images?.[0] && (
+        <img
+          src={poi.images[0]}
+          alt={poi.name}
+          style={panel.heroImg}
+          draggable={false}
+        />
+      )}
+
+      {/* Name */}
+      <h2 style={panel.title}>{poi.name}</h2>
+
+      {/* Description */}
+      <p style={panel.description}>{poi.description}</p>
+
+      {/* Related activities */}
+      {poi.relatedActivities?.length > 0 && (
+        <div style={panel.tagsRow}>
+          {poi.relatedActivities.map((activity) => (
+            <span key={activity} style={panel.tag}>{activity}</span>
+          ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Gallery Panel ───────────────────────────────────────────────────
+
+function GalleryPanel({ poi }) {
+  return (
+    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto', gap: '10px' }}>
+      <h2 style={panel.title}>Gallery</h2>
+
+      {/* Video if available */}
+      {poi.videoUrl && (
+        <video
+          src={poi.videoUrl}
+          controls
+          playsInline
+          style={panel.video}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
+
+      {/* Images */}
+      {poi.images?.map((src, i) => (
+        <img
+          key={i}
+          src={src}
+          alt={`${poi.name} ${i + 1}`}
+          style={panel.galleryImg}
+          draggable={false}
+        />
       ))}
     </div>
   )
 }
 
-function DiningPanel() {
+// ─── Details Panel ───────────────────────────────────────────────────
+
+function DetailsPanel({ poi }) {
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`
+
   return (
     <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
-      <h2 style={panel.title}>Food & Dining</h2>
-      {RESTAURANTS.map((item) => (
-        <div key={item.name} style={panel.card}>
-          <div style={panel.cuisineBadge}>{item.cuisine}</div>
-          <div style={panel.cardBody}>
-            <span style={panel.cardName}>{item.name}</span>
-            <span style={panel.cardDesc}>{item.desc}</span>
-          </div>
+      <h2 style={panel.title}>Details</h2>
+
+      {/* Hours */}
+      {poi.hours && (
+        <div style={panel.detailRow}>
+          <span style={panel.detailLabel}>Hours</span>
+          <span style={panel.detailValue}>{poi.hours}</span>
         </div>
-      ))}
+      )}
+
+      {/* Coordinates */}
+      <div style={panel.detailRow}>
+        <span style={panel.detailLabel}>Location</span>
+        <span style={panel.detailValue}>{poi.lat.toFixed(4)}, {poi.lng.toFixed(4)}</span>
+      </div>
+
+      {/* Category */}
+      <div style={panel.detailRow}>
+        <span style={panel.detailLabel}>Category</span>
+        <span style={panel.detailValue}>{poi.category}</span>
+      </div>
+
+      {/* Tips */}
+      {poi.tips && (
+        <div style={{ marginTop: '12px' }}>
+          <span style={panel.detailLabel}>Tips</span>
+          <p style={{ ...panel.description, marginTop: '4px' }}>{poi.tips}</p>
+        </div>
+      )}
+
+      {/* Directions button */}
+      <a
+        href={mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={panel.directionsBtn}
+        onClick={(e) => e.stopPropagation()}
+      >
+        Get Directions
+      </a>
     </div>
   )
 }
 
-function ActivitiesPanel() {
-  return (
-    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
-      <h2 style={panel.title}>Activities</h2>
-      {ACTIVITIES.map((item) => (
-        <div key={item.name} style={panel.card}>
-          <div style={panel.activityIcon}>{item.icon}</div>
-          <div style={panel.cardBody}>
-            <span style={panel.cardName}>{item.name}</span>
-            <span style={panel.cardDesc}>{item.desc}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// --- Styles ---
+// ─── Styles ──────────────────────────────────────────────────────────
 
 const panel = {
   wrap: {
@@ -94,72 +140,100 @@ const panel = {
     fontFamily: "'DM Sans', sans-serif",
     fontSize: '0.85rem',
     fontWeight: 700,
-    marginBottom: '10px',
+    marginBottom: '8px',
     color: '#fff',
     letterSpacing: '0.02em',
   },
-  card: {
-    display: 'flex',
-    gap: '10px',
-    padding: '8px',
-    marginBottom: '8px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
-  },
-  cardImg: {
-    width: '70px',
-    height: '50px',
-    objectFit: 'cover',
-    borderRadius: '6px',
-    flexShrink: 0,
-  },
-  cardBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '3px',
-    justifyContent: 'center',
-    minWidth: 0,
-  },
-  cardName: {
+  description: {
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.78rem',
+    fontSize: '0.7rem',
+    color: 'rgba(255, 255, 255, 0.6)',
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    padding: '3px 10px',
+    borderRadius: '999px',
+    border: '1px solid',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.6rem',
     fontWeight: 600,
-    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    marginBottom: '10px',
   },
-  cardDesc: {
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.65rem',
-    color: 'rgba(255, 255, 255, 0.5)',
-    lineHeight: 1.4,
+  heroImg: {
+    width: '100%',
+    height: '120px',
+    objectFit: 'cover',
+    borderRadius: '10px',
+    marginBottom: '10px',
   },
-  cuisineBadge: {
-    padding: '4px 8px',
+  tagsRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+    marginTop: '10px',
+  },
+  tag: {
+    padding: '3px 8px',
     background: 'rgba(0, 255, 204, 0.1)',
     border: '1px solid rgba(0, 255, 204, 0.2)',
     borderRadius: '6px',
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.6rem',
+    fontSize: '0.58rem',
     fontWeight: 600,
     color: '#00ffcc',
-    whiteSpace: 'nowrap',
-    alignSelf: 'center',
+  },
+  video: {
+    width: '100%',
+    borderRadius: '10px',
+    maxHeight: '140px',
+    objectFit: 'cover',
+  },
+  galleryImg: {
+    width: '100%',
+    height: '120px',
+    objectFit: 'cover',
+    borderRadius: '10px',
     flexShrink: 0,
   },
-  activityIcon: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '8px',
-    background: 'rgba(0, 255, 204, 0.1)',
-    border: '1px solid rgba(0, 255, 204, 0.15)',
+  detailRow: {
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    padding: '8px 0',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+  },
+  detailLabel: {
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.85rem',
-    fontWeight: 700,
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    color: 'rgba(255, 255, 255, 0.4)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  },
+  detailValue: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.7rem',
+    fontWeight: 500,
+    color: '#fff',
+    textAlign: 'right',
+  },
+  directionsBtn: {
+    display: 'block',
+    marginTop: '16px',
+    padding: '10px',
+    background: 'rgba(0, 255, 204, 0.15)',
+    border: '1px solid rgba(0, 255, 204, 0.3)',
+    borderRadius: '10px',
     color: '#00ffcc',
-    flexShrink: 0,
-    alignSelf: 'center',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    textAlign: 'center',
+    textDecoration: 'none',
+    letterSpacing: '0.04em',
   },
 }

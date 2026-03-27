@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import PanoramicView from './PanoramicView'
+import POIPanels3D from './POIPanels3D'
 import ProximityIndicator from './ProximityIndicator'
 import GPSPlacedObject from './GPSPlacedObject'
+import POIMarker from './POIMarker'
 import { useGeolocation } from './hooks/useGeolocation'
-import { useNearbyPOIs } from './hooks/useNearbyPOIs'
+import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
 import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
 import { POIS } from './data/pois'
 
-// Apayao main landmark coordinates (Provincial Capitol area)
-const APAYAO_LAT = 18.3530
-const APAYAO_LNG = 121.6340
+const MAX_MARKER_DISTANCE = 200 // meters
 
 // ─── AR.js Integration Components ────────────────────────────────────
 
-// Initializes AR.js and provides context to children
 function LocationARProvider({ onError, children }) {
   const arState = useLocationARSetup({ onError })
 
@@ -26,13 +24,12 @@ function LocationARProvider({ onError, children }) {
   )
 }
 
-// Updates webcam background + device orientation each frame
 function ARUpdater() {
   const { orientControls } = useLocationAR()
 
   useFrame(() => {
     orientControls?.current?.update()
-  }, -1) // negative priority = runs before scene render
+  }, -1)
 
   return null
 }
@@ -120,79 +117,30 @@ function FallbackDeviceOrientationCamera() {
   return null
 }
 
-// Screen-anchored text (fallback mode only)
-function FallbackFloatingText({ isTargeted }) {
-  const ref = useRef()
-
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 1024
-    canvas.height = 256
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, 1024, 256)
-    ctx.shadowColor = 'rgba(0, 255, 204, 0.3)'
-    ctx.shadowBlur = 20
-    ctx.font = 'bold 120px sans-serif'
-    ctx.fillStyle = '#ffffff'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('Apayao', 512, 128)
-    const tex = new THREE.CanvasTexture(canvas)
-    tex.needsUpdate = true
-    return tex
-  }, [])
-
-  useFrame(({ camera, clock }) => {
-    if (!ref.current) return
-    const dir = new THREE.Vector3(0, 0, -1.5).applyQuaternion(camera.quaternion)
-    ref.current.position.copy(camera.position).add(dir)
-    ref.current.position.y += Math.sin(clock.elapsedTime * 0.6) * 0.03
-  })
+// Fallback: place POI spheres in an arc around camera for desktop testing
+function FallbackPOIMarkers({ pois, targetedPoiId }) {
+  const groupRef = useRef()
+  const count = pois.length
+  const arcSpan = Math.PI * 0.8 // 144-degree arc in front
+  const radius = 8
 
   return (
-    <sprite ref={ref} scale={[1.2, 0.3, 1]} userData={{ interactive: true }}>
-      <spriteMaterial map={texture} transparent opacity={isTargeted ? 1 : 0.8} depthTest={false} />
-    </sprite>
+    <group ref={groupRef}>
+      {pois.map((poi, i) => {
+        const angle = -arcSpan / 2 + (arcSpan / Math.max(count - 1, 1)) * i
+        const x = Math.sin(angle) * radius
+        const z = -Math.cos(angle) * radius
+        return (
+          <group key={poi.id} position={[x, 0, z]}>
+            <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
+          </group>
+        )
+      })}
+    </group>
   )
 }
 
 // ─── Shared Components ───────────────────────────────────────────────
-
-// "Apayao" text sprite — GPS-placed in AR mode, no camera-following needed
-function ApayaoText({ isTargeted }) {
-  const ref = useRef()
-
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 1024
-    canvas.height = 256
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, 1024, 256)
-    ctx.shadowColor = 'rgba(0, 255, 204, 0.3)'
-    ctx.shadowBlur = 20
-    ctx.font = 'bold 120px sans-serif'
-    ctx.fillStyle = '#ffffff'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('Apayao', 512, 128)
-    const tex = new THREE.CanvasTexture(canvas)
-    tex.needsUpdate = true
-    return tex
-  }, [])
-
-  // Gentle floating animation
-  useFrame(({ clock }) => {
-    if (ref.current) {
-      ref.current.position.y = 2 + Math.sin(clock.elapsedTime * 0.6) * 0.15
-    }
-  })
-
-  return (
-    <sprite ref={ref} scale={[8, 2, 1]} userData={{ interactive: true }}>
-      <spriteMaterial map={texture} transparent opacity={isTargeted ? 1 : 0.8} depthTest={false} />
-    </sprite>
-  )
-}
 
 function CrosshairRaycaster({ onHit, onMiss }) {
   const { camera, scene } = useThree()
@@ -202,7 +150,11 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    if (hit) { onHit() } else { onMiss() }
+    if (hit && hit.object.userData.poiId) {
+      onHit(hit.object.userData.poiId)
+    } else {
+      onMiss()
+    }
   })
 
   return null
@@ -250,32 +202,64 @@ function ShutterButton({ targeted, onCapture }) {
   )
 }
 
+// ─── GPS-placed POIs with distance clamping ─────────────────────────
+
+function ClampedPOIs({ pois, coords, targetedPoiId }) {
+  const clampedPois = useMemo(() => {
+    if (!coords) return pois.map((poi) => ({ poi, lat: poi.lat, lng: poi.lng }))
+
+    return pois.map((poi) => {
+      const clamped = getClampedCoords(
+        coords.latitude,
+        coords.longitude,
+        poi,
+        MAX_MARKER_DISTANCE
+      )
+      return { poi, lat: clamped.lat, lng: clamped.lng }
+    })
+  }, [pois, coords?.latitude, coords?.longitude])
+
+  return (
+    <>
+      {clampedPois.map(({ poi, lat, lng }) => (
+        <GPSPlacedObject key={poi.id} lat={lat} lng={lng}>
+          <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
+        </GPSPlacedObject>
+      ))}
+    </>
+  )
+}
+
 // ─── Main ARScene ────────────────────────────────────────────────────
 
 export default function ARScene() {
-  const [targeted, setTargeted] = useState(false)
-  const [panelOpen, setPanelOpen] = useState(false)
+  const [targetedPoiId, setTargetedPoiId] = useState(null)
+  const [activePoi, setActivePoi] = useState(null)
   const [arFailed, setArFailed] = useState(false)
 
-  // GPS proximity detection (still used for ProximityIndicator)
   const { coords } = useGeolocation()
   const { closestPOI } = useNearbyPOIs(coords, POIS)
+
+  const targeted = targetedPoiId !== null
+
+  const handleCapture = () => {
+    if (!targetedPoiId) return
+    const poi = POIS.find((p) => p.id === targetedPoiId)
+    if (poi) setActivePoi(poi)
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <CameraBackground />
 
-      {/* Show proximity indicator if near a real POI */}
       {closestPOI && <ProximityIndicator poi={closestPOI} />}
 
-      {/* Fallback mode banner */}
       {arFailed && (
         <div style={styles.fallbackBanner}>
           Demo mode — location AR unavailable
         </div>
       )}
 
-      {/* Three.js Canvas */}
       <Canvas
         style={{ position: 'absolute', inset: 0 }}
         camera={{ position: [0, 0, 0] }}
@@ -288,35 +272,48 @@ export default function ARScene() {
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
         {!arFailed ? (
-          // ── Real AR.js Mode ──
           <LocationARProvider onError={() => setArFailed(true)}>
             <ARUpdater />
-
-            <GPSPlacedObject lat={APAYAO_LAT} lng={APAYAO_LNG}>
-              <ApayaoText isTargeted={targeted} />
-            </GPSPlacedObject>
+            <ClampedPOIs
+              pois={POIS}
+              coords={coords}
+              targetedPoiId={targetedPoiId}
+            />
           </LocationARProvider>
         ) : (
-          // ── Fallback Simulated Mode ──
           <>
             <FallbackDeviceOrientationCamera />
-            <FallbackFloatingText isTargeted={targeted} />
+            <FallbackPOIMarkers pois={POIS} targetedPoiId={targetedPoiId} />
           </>
         )}
 
-        <CrosshairRaycaster
-          onHit={() => setTargeted(true)}
-          onMiss={() => setTargeted(false)}
-        />
+        {/* Disable raycaster when panels are open */}
+        {!activePoi && (
+          <CrosshairRaycaster
+            onHit={(poiId) => setTargetedPoiId(poiId)}
+            onMiss={() => setTargetedPoiId(null)}
+          />
+        )}
+
+        {/* 3D panels rendered inside the scene */}
+        {activePoi && (
+          <POIPanels3D poi={activePoi} onClose={() => setActivePoi(null)} />
+        )}
       </Canvas>
 
-      <Crosshair active={targeted} />
+      {/* Hide crosshair + UI when panels are open */}
+      {!activePoi && <Crosshair active={targeted} />}
 
-      {!panelOpen && (
-        <ShutterButton targeted={targeted} onCapture={() => setPanelOpen(true)} />
+      {/* POI name hint when targeted */}
+      {targeted && !activePoi && (
+        <div style={styles.targetHint}>
+          {POIS.find((p) => p.id === targetedPoiId)?.name}
+        </div>
       )}
 
-      {panelOpen && <PanoramicView onClose={() => setPanelOpen(false)} />}
+      {!activePoi && (
+        <ShutterButton targeted={targeted} onCapture={handleCapture} />
+      )}
     </div>
   )
 }
@@ -361,5 +358,22 @@ const styles = {
     fontWeight: 600,
     zIndex: 15,
     pointerEvents: 'none',
+  },
+  targetHint: {
+    position: 'fixed',
+    top: '60%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '0.35rem 1rem',
+    background: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(8px)',
+    borderRadius: '999px',
+    color: '#00ffcc',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    zIndex: 15,
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
   },
 }

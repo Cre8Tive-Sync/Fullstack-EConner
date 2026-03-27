@@ -3,54 +3,47 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "run-p type-check \"build-only {@}\" --",
+    "build": "tsc --build && vite build",
     "test:unit": "vitest",
     "lint": "run-s lint:*",
-    "build-only": "vite build",
     "dev": "vite",
     "format": "oxfmt src/",
     "lint:eslint": "eslint . --fix --cache",
     "lint:oxlint": "oxlint . --fix",
     "preview": "vite preview",
-    "type-check": "vue-tsc --build"
+    "type-check": "tsc --build"
   },
   "dependencies": {
     "@ar-js-org/ar.js": "^3.4.8",
+    "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@react-three/xr": "^6.6.29",
     "@vitejs/plugin-react": "^5.1.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "register-service-worker": "^1.7.2",
-    "three": "^0.183.2",
-    "vue": "^3.5.29"
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.0",
     "@types/node": "^24.11.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-basic-ssl": "^2.1.4",
-    "@vitejs/plugin-vue": "^6.0.4",
-    "@vitejs/plugin-vue-jsx": "^5.1.4",
     "@vitest/eslint-plugin": "^1.6.9",
-    "@vue/cli-plugin-pwa": "^4.5.19",
-    "@vue/eslint-config-typescript": "^14.7.0",
-    "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.1",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-oxlint": "~1.50.0",
-    "eslint-plugin-vue": "~10.8.0",
     "jiti": "^2.6.1",
     "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
     "oxfmt": "^0.35.0",
     "oxlint": "~1.50.0",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.33.1",
     "vite": "^7.3.1",
-    "vite-plugin-vue-devtools": "^8.0.6",
-    "vitest": "^4.0.18",
-    "vue-tsc": "^3.2.5"
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
