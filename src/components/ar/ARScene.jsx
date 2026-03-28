@@ -273,15 +273,54 @@ function ClampedPOIs({ pois, coords, targetedPoiId }) {
   )
 }
 
-// ─── Nearby test POI (placed ~20m north of user on first GPS fix) ───
+// ─── Compass HUD ────────────────────────────────────────────────────
+
+function Compass() {
+  const [heading, setHeading] = useState(0)
+
+  useEffect(() => {
+    const onOrientation = (e) => {
+      if (e.alpha != null) setHeading(e.alpha)
+    }
+    window.addEventListener('deviceorientation', onOrientation)
+
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().catch(() => {})
+    }
+
+    return () => window.removeEventListener('deviceorientation', onOrientation)
+  }, [])
+
+  const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+  const index = Math.round(heading / 45) % 8
+  const label = cardinals[index]
+
+  return (
+    <div style={styles.compass}>
+      <div
+        style={{
+          ...styles.compassRing,
+          transform: `rotate(${-heading}deg)`,
+        }}
+      >
+        {/* North needle */}
+        <div style={styles.compassNeedle} />
+        <span style={styles.compassN}>N</span>
+      </div>
+      <span style={styles.compassLabel}>{label} {Math.round(heading)}°</span>
+    </div>
+  )
+}
+
+// ─── Nearby test POI (placed ~1m north of user on first GPS fix) ───
 
 function useTestPOI(coords) {
   // Capture the user's first GPS position and create a test POI ~20m ahead
   const testPoi = useRef(null)
 
   if (coords && !testPoi.current) {
-    // Offset ~20m north (latitude) — 1 degree latitude ≈ 111,320m
-    const offsetLat = 20 / 111320
+    // Offset ~1m north (latitude) — 1 degree latitude ≈ 111,320m
+    const offsetLat = 1 / 111320
     testPoi.current = {
       id: 'poi-test',
       name: 'Test Marker',
@@ -335,6 +374,8 @@ export default function ARScene() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <CameraBackground />
+
+      <Compass />
 
       {closestPOI && <ProximityIndicator poi={closestPOI} />}
 
@@ -459,5 +500,59 @@ const styles = {
     zIndex: 15,
     pointerEvents: 'none',
     whiteSpace: 'nowrap',
+  },
+  compass: {
+    position: 'fixed',
+    top: '1rem',
+    left: '1rem',
+    zIndex: 20,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+    pointerEvents: 'none',
+  },
+  compassRing: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    border: '2px solid rgba(255, 255, 255, 0.3)',
+    background: 'rgba(0, 0, 0, 0.4)',
+    backdropFilter: 'blur(8px)',
+    position: 'relative',
+    transition: 'transform 0.15s ease-out',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compassNeedle: {
+    position: 'absolute',
+    top: '6px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '0',
+    height: '0',
+    borderLeft: '5px solid transparent',
+    borderRight: '5px solid transparent',
+    borderBottom: '12px solid #ff3333',
+  },
+  compassN: {
+    position: 'absolute',
+    top: '-1px',
+    left: '50%',
+    transform: 'translateX(-50%) translateY(-100%)',
+    fontSize: '0.55rem',
+    fontWeight: 700,
+    color: '#ff3333',
+    fontFamily: "'DM Sans', sans-serif",
+  },
+  compassLabel: {
+    fontSize: '0.6rem',
+    fontWeight: 600,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: "'DM Sans', sans-serif",
+    background: 'rgba(0, 0, 0, 0.4)',
+    padding: '2px 6px',
+    borderRadius: '4px',
   },
 }
