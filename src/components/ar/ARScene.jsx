@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import POIMarker from './POIMarker'
@@ -169,15 +169,28 @@ function FallbackPOIMarkers({ pois, targetedPoiId }) {
 function CrosshairRaycaster({ onHit, onMiss }) {
   const { camera, scene } = useThree()
   const raycaster = useRef(new THREE.Raycaster())
+  const lastPoiId = useRef(null)
+
+  // Store callbacks in refs so useFrame never triggers re-renders from stale closures
+  const onHitRef = useRef(onHit)
+  const onMissRef = useRef(onMiss)
+  onHitRef.current = onHit
+  onMissRef.current = onMiss
 
   useFrame(() => {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    if (hit) {
-      onHit(hit.object.userData.poiId)
-    } else {
-      onMiss()
+    const poiId = hit ? hit.object.userData.poiId : null
+
+    // Only fire callbacks when the targeted POI actually changes
+    if (poiId !== lastPoiId.current) {
+      lastPoiId.current = poiId
+      if (poiId) {
+        onHitRef.current(poiId)
+      } else {
+        onMissRef.current()
+      }
     }
   })
 
@@ -574,11 +587,20 @@ function ARSceneInner() {
 
   const targeted = targetedPoiId !== null
 
-  const handleCapture = () => {
-    if (!targetedPoiId) return
-    const poi = allPois.find((p) => p.id === targetedPoiId)
-    if (poi) setActivePoi(poi)
-  }
+  const handleHit = useCallback((poiId) => setTargetedPoiId(poiId), [])
+  const handleMiss = useCallback(() => setTargetedPoiId(null), [])
+  const handleClosePanel = useCallback(() => setActivePoi(null), [])
+  const handleArError = useCallback(() => setArFailed(true), [])
+  const handleDebugPlaced = useCallback(() => setDebugPlaced(true), [])
+
+  const handleCapture = useCallback(() => {
+    setTargetedPoiId((currentId) => {
+      if (!currentId) return currentId
+      const poi = allPois.find((p) => p.id === currentId)
+      if (poi) setActivePoi(poi)
+      return currentId
+    })
+  }, [allPois])
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
@@ -626,11 +648,11 @@ function ARSceneInner() {
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
         {/* DEBUG: sphere that stays in front of camera after AR.js orientation settles */}
-        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={() => setDebugPlaced(true)} />
+        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={handleDebugPlaced} />
         <DirectionArrow targetRef={debugSphereRef} visible={debugPlaced} />
 
         {!arFailed ? (
-          <LocationARProvider onError={() => setArFailed(true)}>
+          <LocationARProvider onError={handleArError}>
             <ARUpdater />
             <ClampedPOIs
               pois={allPois}
@@ -648,14 +670,14 @@ function ARSceneInner() {
         {/* Disable raycaster when panels are open */}
         {!activePoi && (
           <CrosshairRaycaster
-            onHit={(poiId) => setTargetedPoiId(poiId)}
-            onMiss={() => setTargetedPoiId(null)}
+            onHit={handleHit}
+            onMiss={handleMiss}
           />
         )}
 
         {/* 3D panels rendered inside the scene */}
         {activePoi && (
-          <POIPanels3D poi={activePoi} onClose={() => setActivePoi(null)} />
+          <POIPanels3D poi={activePoi} onClose={handleClosePanel} />
         )}
       </Canvas>
 
