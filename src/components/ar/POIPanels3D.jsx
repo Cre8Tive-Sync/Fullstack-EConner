@@ -31,13 +31,13 @@ function ScreenCloseButton({ onClose }) {
 }
 
 const PANEL_DEFS = [
-  { id: 'overview', label: null, angleOffset: -0.55 },   // ~-31 degrees left
+  { id: 'overview', label: null, angleOffset: -0.65 },   // ~-31 degrees left
   { id: 'gallery',  label: 'Gallery',  angleOffset: 0 },  // center
-  { id: 'details',  label: 'Details',  angleOffset: 0.55 }, // ~31 degrees right
+  { id: 'details',  label: 'Details',  angleOffset: 0.65 }, // ~31 degrees right
 ]
 
 const PANEL_DISTANCE = 4  // meters in front of user
-const PANEL_Y = 0.3       // slight vertical offset
+const PANEL_Y = 0.5       // slight vertical offset
 
 /**
  * Renders interactive HTML panels as 3D objects inside the AR scene.
