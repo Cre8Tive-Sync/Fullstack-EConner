@@ -80,14 +80,18 @@ export default function POIPanels3D({ poi, onClose }) {
         </group>
       ))}
 
-      {/* Close button — always in front of user at bottom */}
+      {/* Close button — fixed to screen, not 3D space */}
       <Html
         center
-        transform
-        distanceFactor={4}
-        position={[baseDirection.x * 3, -1.5, -baseDirection.z * 3]}
-        rotation={[0, Math.atan2(baseDirection.x, -baseDirection.z), 0]}
-        style={{ pointerEvents: 'auto' }}
+        fullscreen
+        style={{
+          position: 'fixed',
+          bottom: '2rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          pointerEvents: 'auto',
+          zIndex: 60,
+        }}
       >
         <button style={styles.closeBtn} onClick={onClose}>
           Close

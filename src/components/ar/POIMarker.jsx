@@ -47,8 +47,8 @@ export default function POIMarker({ poi, isTargeted }) {
   })
 
   const emissiveIntensity = isTargeted ? 1.8 : 0.6
-  const sphereRadius = 2.5
-  const glowRadius = 3.0
+  const sphereRadius = 1.25
+  const glowRadius = 1.5
 
   return (
     <group ref={groupRef}>
@@ -82,8 +82,8 @@ export default function POIMarker({ poi, isTargeted }) {
 
       {/* Floating name label */}
       <sprite
-        position={[0, sphereRadius + 1.5, 0]}
-        scale={[8, 2, 1]}
+        position={[0, sphereRadius + 1, 0]}
+        scale={[4, 1, 1]}
         userData={{ interactive: true, poiId: poi.id }}
       >
         <spriteMaterial

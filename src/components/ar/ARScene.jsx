@@ -52,7 +52,11 @@ function CameraBackground() {
 
       navigator.mediaDevices
         .getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
           audio: false,
         })
         .then((stream) => {
@@ -234,7 +238,7 @@ function DebugForwardSphere({ poiId, sphereRef, onPlaced }) {
       position={[savedPos.current.x, savedPos.current.y, savedPos.current.z]}
       userData={{ interactive: true, poiId }}
     >
-      <sphereGeometry args={[1, 16, 16]} />
+      <sphereGeometry args={[0.5, 16, 16]} />
       <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
     </mesh>
   )
@@ -270,13 +274,13 @@ function DirectionArrow({ targetRef, visible }) {
 
   return (
     <group ref={groupRef} visible={visible}>
-      {/* Shaft — cylinder rotated from Y to Z axis */}
-      <mesh position={[0, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+      {/* Shaft — along -Z (toward target after lookAt) */}
+      <mesh position={[0, 0, -0.1]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
         <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={1.5} />
       </mesh>
-      {/* Arrow head — cone tip pointing toward +Z (toward target via lookAt) */}
-      <mesh position={[0, 0, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Arrow head — cone tip pointing -Z (toward target after lookAt) */}
+      <mesh position={[0, 0, -0.35]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.1, 0.25, 8]} />
         <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={2} />
       </mesh>
