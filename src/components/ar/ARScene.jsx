@@ -152,19 +152,27 @@ function FallbackDeviceOrientationCamera() {
   return null
 }
 
-// Fallback: place POI spheres in an arc around camera for desktop testing
+// Fallback: first POI directly in front, rest spread in an arc behind it
 function FallbackPOIMarkers({ pois, targetedPoiId }) {
   const groupRef = useRef()
-  const count = pois.length
-  const arcSpan = Math.PI * 0.8 // 144-degree arc in front
   const radius = 8
 
   return (
     <group ref={groupRef}>
       {pois.map((poi, i) => {
-        const angle = -arcSpan / 2 + (arcSpan / Math.max(count - 1, 1)) * i
-        const x = Math.sin(angle) * radius
-        const z = -Math.cos(angle) * radius
+        let x, z
+        if (i === 0) {
+          // First POI: dead center in front of camera
+          x = 0
+          z = -radius
+        } else {
+          // Remaining POIs: spread in an arc to left and right
+          const remaining = pois.length - 1
+          const arcSpan = Math.PI * 0.7 // ~126 degrees
+          const angle = -arcSpan / 2 + (arcSpan / Math.max(remaining - 1, 1)) * (i - 1)
+          x = Math.sin(angle) * radius
+          z = -Math.cos(angle) * radius
+        }
         return (
           <group key={poi.id} position={[x, 0, z]}>
             <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
@@ -265,6 +273,40 @@ function ClampedPOIs({ pois, coords, targetedPoiId }) {
   )
 }
 
+// ─── Nearby test POI (placed ~20m north of user on first GPS fix) ───
+
+function useTestPOI(coords) {
+  // Capture the user's first GPS position and create a test POI ~20m ahead
+  const testPoi = useRef(null)
+
+  if (coords && !testPoi.current) {
+    // Offset ~20m north (latitude) — 1 degree latitude ≈ 111,320m
+    const offsetLat = 20 / 111320
+    testPoi.current = {
+      id: 'poi-test',
+      name: 'Test Marker',
+      description:
+        'This is a test marker placed 20 meters ahead of your starting position. If you can see this sphere and interact with it, AR is working!',
+      lat: coords.latitude + offsetLat,
+      lng: coords.longitude,
+      category: 'test',
+      images: [
+        'https://picsum.photos/seed/test1/400/300',
+        'https://picsum.photos/seed/test2/400/300',
+      ],
+      videoUrl: null,
+      sphereColor: '#ff3366',
+      sphereEmissive: '#aa1133',
+      proximityRadius: 30,
+      hours: 'Always visible',
+      tips: 'This test marker proves the AR system is working. Walk toward it to see proximity detection.',
+      relatedActivities: ['Testing', 'Demo'],
+    }
+  }
+
+  return testPoi.current
+}
+
 // ─── Main ARScene ────────────────────────────────────────────────────
 
 export default function ARScene() {
@@ -273,13 +315,20 @@ export default function ARScene() {
   const [arFailed, setArFailed] = useState(false)
 
   const { coords } = useGeolocation()
-  const { closestPOI } = useNearbyPOIs(coords, POIS)
+  const testPoi = useTestPOI(coords)
+
+  // Merge test POI (first) with real POIs so it appears at index 0
+  const allPois = useMemo(() => {
+    return testPoi ? [testPoi, ...POIS] : POIS
+  }, [testPoi])
+
+  const { closestPOI } = useNearbyPOIs(coords, allPois)
 
   const targeted = targetedPoiId !== null
 
   const handleCapture = () => {
     if (!targetedPoiId) return
-    const poi = POIS.find((p) => p.id === targetedPoiId)
+    const poi = allPois.find((p) => p.id === targetedPoiId)
     if (poi) setActivePoi(poi)
   }
 
@@ -310,7 +359,7 @@ export default function ARScene() {
           <LocationARProvider onError={() => setArFailed(true)}>
             <ARUpdater />
             <ClampedPOIs
-              pois={POIS}
+              pois={allPois}
               coords={coords}
               targetedPoiId={targetedPoiId}
             />
@@ -318,7 +367,7 @@ export default function ARScene() {
         ) : (
           <>
             <FallbackDeviceOrientationCamera />
-            <FallbackPOIMarkers pois={POIS} targetedPoiId={targetedPoiId} />
+            <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedPoiId} />
           </>
         )}
 
@@ -342,7 +391,7 @@ export default function ARScene() {
       {/* POI name hint when targeted */}
       {targeted && !activePoi && (
         <div style={styles.targetHint}>
-          {POIS.find((p) => p.id === targetedPoiId)?.name}
+          {allPois.find((p) => p.id === targetedPoiId)?.name}
         </div>
       )}
 
