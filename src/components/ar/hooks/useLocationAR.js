@@ -25,6 +25,8 @@ export function useLocationARSetup({ onError }) {
   const [gpsError, setGpsError] = useState(null)
 
   useEffect(() => {
+    let disposed = false
+
     try {
       // Initialize AR.js location-based system
       const locationBased = new LocationBased(scene, camera, {
@@ -42,17 +44,28 @@ export function useLocationARSetup({ onError }) {
 
       // Listen for GPS updates
       locationBased.on('gpsupdate', () => {
-        setGpsReady(true)
-        setGpsError(null)
+        if (!disposed) {
+          setGpsReady(true)
+          setGpsError(null)
+        }
       })
 
       locationBased.on('gpserror', (code) => {
-        setGpsError(`GPS error: code ${code}`)
-        onError?.(`GPS error: code ${code}`)
+        if (!disposed) {
+          console.warn('GPS error code:', code)
+          setGpsError(`GPS error: code ${code}`)
+          onError?.(`GPS error: code ${code}`)
+        }
       })
 
-      // Start GPS tracking
-      locationBased.startGps()
+      // Start GPS tracking — this returns a Promise on newer AR.js versions
+      Promise.resolve(locationBased.startGps()).catch((err) => {
+        if (!disposed) {
+          console.warn('AR.js startGps failed:', err)
+          setGpsError(err.message || String(err))
+          onError?.(err.message || String(err))
+        }
+      })
     } catch (err) {
       console.error('AR.js initialization failed:', err)
       setGpsError(err.message)
@@ -60,6 +73,7 @@ export function useLocationARSetup({ onError }) {
     }
 
     return () => {
+      disposed = true
       locationRef.current?.stopGps()
       orientRef.current?.dispose()
     }

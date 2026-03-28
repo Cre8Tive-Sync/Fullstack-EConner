@@ -11,11 +11,15 @@ export default function GPSPlacedObject({ lat, lng, elevation, children }) {
   const addedRef = useRef(false)
 
   useEffect(() => {
-    if (!ctx?.locationBased?.current || !groupRef.current || addedRef.current) return
+    if (!ctx?.locationBased?.current || !ctx?.gpsReady || !groupRef.current || addedRef.current) return
 
-    ctx.locationBased.current.add(groupRef.current, lng, lat, elevation)
-    addedRef.current = true
-  }, [ctx?.locationBased?.current, lat, lng, elevation])
+    try {
+      ctx.locationBased.current.add(groupRef.current, lng, lat, elevation)
+      addedRef.current = true
+    } catch (err) {
+      console.warn('GPSPlacedObject: failed to place object:', err.message)
+    }
+  }, [ctx?.locationBased?.current, ctx?.gpsReady, lat, lng, elevation])
 
   return <group ref={groupRef}>{children}</group>
 }

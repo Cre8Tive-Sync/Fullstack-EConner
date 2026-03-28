@@ -1,36 +1,82 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import PanoramicView from './PanoramicView'
+import POIMarker from './POIMarker'
+import POIPanels3D from './POIPanels3D'
+import ProximityIndicator from './ProximityIndicator'
+import GPSPlacedObject from './GPSPlacedObject'
+import { useGeolocation } from './hooks/useGeolocation'
+import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
+import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
+import { POIS } from './data/pois'
 
-const xrStore = createXRStore()
+const MAX_MARKER_DISTANCE = 200
 
 // Shows rear camera as background
 function CameraBackground() {
   const videoRef = useRef()
 
   useEffect(() => {
-    if (!navigator.mediaDevices) return
+    if (!navigator.mediaDevices) {
+      console.warn('navigator.mediaDevices not available (requires HTTPS)')
+      return
+    }
 
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
-      .then((stream) => {
-        if (videoRef.current) {
+    let stopped = false
+
+    function startCamera() {
+      if (stopped || !videoRef.current) return
+
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        })
+        .then((stream) => {
+          if (stopped || !videoRef.current) {
+            stream.getTracks().forEach((t) => t.stop())
+            return
+          }
           videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
-        }
-      })
-      .catch((err) => console.warn('Camera access denied:', err))
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current
+              ?.play()
+              .catch((err) => console.warn('Video play failed:', err))
+          }
+
+          // iOS kills the camera stream when other permission prompts
+          // (geolocation, device orientation) appear — restart if that happens
+          stream.getVideoTracks().forEach((track) => {
+            track.addEventListener('ended', () => {
+              console.warn('Camera track ended, restarting...')
+              startCamera()
+            })
+          })
+        })
+        .catch((err) => console.warn('Camera access denied:', err))
+    }
+
+    startCamera()
 
     return () => {
-      videoRef.current?.srcObject?.getTracks().forEach((t) => t.stop())
+      stopped = true
+      const tracks = videoRef.current?.srcObject?.getTracks()
+      if (tracks) tracks.forEach((t) => t.stop())
     }
   }, [])
 
   return (
     <video
       ref={videoRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      style={{
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        objectFit: 'cover', zIndex: 0,
+      }}
       autoPlay
       playsInline
       muted
@@ -87,19 +133,27 @@ function FallbackDeviceOrientationCamera() {
   return null
 }
 
-// Fallback: place POI spheres in an arc around camera for desktop testing
+// Fallback: first POI directly in front, rest spread in an arc behind it
 function FallbackPOIMarkers({ pois, targetedPoiId }) {
   const groupRef = useRef()
-  const count = pois.length
-  const arcSpan = Math.PI * 0.8 // 144-degree arc in front
-  const radius = 8
+  const radius = 5 // close enough to see clearly
 
   return (
     <group ref={groupRef}>
       {pois.map((poi, i) => {
-        const angle = -arcSpan / 2 + (arcSpan / Math.max(count - 1, 1)) * i
-        const x = Math.sin(angle) * radius
-        const z = -Math.cos(angle) * radius
+        let x, z
+        if (i === 0) {
+          // First POI: dead center in front of camera
+          x = 0
+          z = -radius
+        } else {
+          // Remaining POIs: spread in an arc to left and right
+          const remaining = pois.length - 1
+          const arcSpan = Math.PI * 0.7 // ~126 degrees
+          const angle = -arcSpan / 2 + (arcSpan / Math.max(remaining - 1, 1)) * (i - 1)
+          x = Math.sin(angle) * radius
+          z = -Math.cos(angle) * radius
+        }
         return (
           <group key={poi.id} position={[x, 0, z]}>
             <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
@@ -120,10 +174,92 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    hit ? onHit() : onMiss()
+    if (hit) {
+      onHit(hit.object.userData.poiId)
+    } else {
+      onMiss()
+    }
   })
 
   return null
+}
+
+// DEBUG: red sphere placed 5m in front of camera after 2s delay
+function DebugForwardSphere({ poiId, sphereRef, onPlaced }) {
+  const { camera } = useThree()
+  const [show, setShow] = useState(false)
+  const placed = useRef(false)
+  const timer = useRef(0)
+  const savedPos = useRef(new THREE.Vector3(0, -9999, 0))
+
+  useFrame((_, delta) => {
+    if (placed.current) return
+
+    timer.current += delta
+    if (timer.current < 2) return
+
+    // Place sphere 5m in front of wherever the camera is looking
+    const forward = new THREE.Vector3(0, 0, -5)
+    forward.applyQuaternion(camera.quaternion)
+    savedPos.current.copy(camera.position).add(forward)
+    placed.current = true
+    setShow(true)
+    onPlaced?.()
+  })
+
+  if (!show) return null
+
+  return (
+    <mesh
+      ref={sphereRef}
+      position={[savedPos.current.x, savedPos.current.y, savedPos.current.z]}
+      userData={{ interactive: true, poiId }}
+    >
+      <sphereGeometry args={[0.5, 16, 16]} />
+      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
+    </mesh>
+  )
+}
+
+// DEBUG: green arrow that follows the camera and always points at the target
+function DirectionArrow({ targetRef, visible }) {
+  const { camera } = useThree()
+  const groupRef = useRef()
+
+  useFrame(() => {
+    if (!groupRef.current || !targetRef?.current) return
+    if (!targetRef.current.visible) return
+
+    // Stick the arrow 1.5m in front of camera, slightly below center
+    const offset = new THREE.Vector3(0, -0.3, -1.5)
+    offset.applyQuaternion(camera.quaternion)
+    groupRef.current.position.copy(camera.position).add(offset)
+
+    // Point arrow toward target using simple quaternion from direction
+    const dir = new THREE.Vector3()
+    dir.subVectors(targetRef.current.position, groupRef.current.position).normalize()
+
+    // Build quaternion that rotates +Z to point along `dir`
+    const defaultDir = new THREE.Vector3(0, 0, 1)
+    const quat = new THREE.Quaternion()
+    quat.setFromUnitVectors(defaultDir, dir)
+    groupRef.current.quaternion.copy(quat)
+  })
+
+  return (
+    <group ref={groupRef} visible={visible}>
+      {/* Shaft — along +Z */}
+      <mesh position={[0, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
+        <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={1.5} />
+      </mesh>
+      {/* Arrow head — cone tip pointing +Z (rotate +90° around X: +Y → +Z) */}
+      <mesh position={[0, 0, 0.35]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.1, 0.25, 8]} />
+        <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={2} />
+      </mesh>
+    </group>
+  )
 }
 
 function Crosshair({ active }) {
@@ -230,50 +366,311 @@ function ClampedPOIs({ pois, coords, targetedPoiId }) {
   )
 }
 
-// ─── Main ARScene ────────────────────────────────────────────────────
+// ─── Compass HUD ────────────────────────────────────────────────────
+
+function Compass() {
+  const [heading, setHeading] = useState(null) // null = no data yet
+  const smoothHeading = useRef(0)
+
+  useEffect(() => {
+    let active = true
+
+    const onOrientation = (e) => {
+      if (!active) return
+
+      // iOS provides webkitCompassHeading (true north, 0-360)
+      // Android/others: alpha is 0-360 but relative — we use it as best-effort
+      let h = null
+      if (e.webkitCompassHeading != null) {
+        h = e.webkitCompassHeading
+      } else if (e.alpha != null) {
+        // On Android, alpha=0 is wherever the phone was pointing at page load
+        // With absolute:true events this is true north; otherwise approximate
+        h = 360 - e.alpha
+      }
+
+      if (h != null) {
+        // Smooth the heading to avoid jitter
+        let delta = h - smoothHeading.current
+        if (delta > 180) delta -= 360
+        if (delta < -180) delta += 360
+        smoothHeading.current = (smoothHeading.current + delta * 0.3 + 360) % 360
+        setHeading(smoothHeading.current)
+      }
+    }
+
+    // Try absolute orientation first (true north on Android)
+    window.addEventListener('deviceorientationabsolute', onOrientation)
+    window.addEventListener('deviceorientation', onOrientation)
+
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().catch(() => {})
+    }
+
+    return () => {
+      active = false
+      window.removeEventListener('deviceorientationabsolute', onOrientation)
+      window.removeEventListener('deviceorientation', onOrientation)
+    }
+  }, [])
+
+  const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+  const h = heading ?? 0
+  const index = Math.round(h / 45) % 8
+  const label = cardinals[index]
+
+  return (
+    <div style={styles.compass}>
+      <div
+        style={{
+          ...styles.compassRing,
+          transform: `rotate(${-h}deg)`,
+        }}
+      >
+        {/* North needle */}
+        <div style={styles.compassNeedle} />
+        <span style={styles.compassN}>N</span>
+      </div>
+      <span style={styles.compassLabel}>
+        {heading == null ? 'No compass' : `${label} ${Math.round(h)}°`}
+      </span>
+    </div>
+  )
+}
+
+// ─── Nearby test POI (placed ~1m north of user on first GPS fix) ───
+
+function useTestPOI(coords) {
+  // Capture the user's first GPS position and create a test POI ~20m ahead
+  const testPoi = useRef(null)
+
+  if (coords && !testPoi.current) {
+    // Offset ~10m north (latitude) — 1 degree latitude ≈ 111,320m
+    // Must be >= AR.js gpsMinDistance (5m) to actually register as a distinct position
+    const offsetLat = 10 / 111320
+    testPoi.current = {
+      id: 'poi-test',
+      name: 'Test Marker',
+      description:
+        'This is a test marker placed 20 meters ahead of your starting position. If you can see this sphere and interact with it, AR is working!',
+      lat: coords.latitude + offsetLat,
+      lng: coords.longitude,
+      category: 'test',
+      images: [
+        'https://picsum.photos/seed/test1/400/300',
+        'https://picsum.photos/seed/test2/400/300',
+      ],
+      videoUrl: null,
+      sphereColor: '#ff3366',
+      sphereEmissive: '#aa1133',
+      proximityRadius: 30,
+      hours: 'Always visible',
+      tips: 'This test marker proves the AR system is working. Walk toward it to see proximity detection.',
+      relatedActivities: ['Testing', 'Demo'],
+    }
+  }
+
+  return testPoi.current
+}
+
+// ─── Permission Gate ─────────────────────────────────────────────────
+// iOS requires deviceorientation permission from a user gesture.
+// This screen requests all permissions before launching the AR scene.
 
 export default function ARScene() {
-  const [targeted, setTargeted] = useState(false)
-  const [panelOpen, setPanelOpen] = useState(false)
+  const [permitted, setPermitted] = useState(false)
+
+  const requestPermissions = async () => {
+    // 1. Device orientation (iOS 13+)
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      try {
+        const result = await DeviceOrientationEvent.requestPermission()
+        if (result !== 'granted') {
+          alert('Device orientation permission is required for AR.')
+          return
+        }
+      } catch (err) {
+        console.warn('Orientation permission error:', err)
+      }
+    }
+
+    // 2. Camera
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+      })
+      // Stop the test stream — CameraBackground will open its own
+      stream.getTracks().forEach((t) => t.stop())
+    } catch (err) {
+      console.warn('Camera permission error:', err)
+    }
+
+    // 3. Geolocation (just trigger the prompt)
+    navigator.geolocation?.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true })
+
+    setPermitted(true)
+  }
+
+  if (!permitted) {
+    return (
+      <div style={styles.permissionGate}>
+        <div style={styles.permissionCard}>
+          <h1 style={styles.permissionTitle}>Cre8Tive Sync AR</h1>
+          <p style={styles.permissionDesc}>
+            This app uses your camera, GPS, and motion sensors to show
+            points of interest in augmented reality.
+          </p>
+          <button style={styles.permissionBtn} onClick={requestPermissions}>
+            Start AR Experience
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <ARSceneInner />
+}
+
+// ─── AR.js Location Provider + Updater ──────────────────────────────
+
+function LocationARProvider({ onError, children }) {
+  const arState = useLocationARSetup({ onError })
+
+  return (
+    <LocationARContext.Provider value={arState}>
+      {children}
+    </LocationARContext.Provider>
+  )
+}
+
+function ARUpdater() {
+  const arState = useLocationAR()
+
+  useFrame(() => {
+    arState?.orientControls?.current?.update()
+  })
+
+  return null
+}
+
+// ─── Main ARScene (rendered after permissions granted) ──────────────
+
+function ARSceneInner() {
+  const [targetedPoiId, setTargetedPoiId] = useState(null)
+  const [activePoi, setActivePoi] = useState(null)
+  const [arFailed, setArFailed] = useState(false)
+  const [debugPlaced, setDebugPlaced] = useState(false)
+  const debugSphereRef = useRef()
+
+  const { coords } = useGeolocation()
+  const testPoi = useTestPOI(coords)
+
+  // Merge test POI (first) with real POIs so it appears at index 0
+  const allPois = useMemo(() => {
+    return testPoi ? [testPoi, ...POIS] : POIS
+  }, [testPoi])
+
+  const { closestPOI } = useNearbyPOIs(coords, allPois)
+
+  const targeted = targetedPoiId !== null
+
+  const handleCapture = () => {
+    if (!targetedPoiId) return
+    const poi = allPois.find((p) => p.id === targetedPoiId)
+    if (poi) setActivePoi(poi)
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* Rear camera feed as background */}
       <CameraBackground />
 
-      {/* AR Enter Button (WebXR — only works over HTTPS) */}
-      <button style={styles.arButton} onClick={() => xrStore.enterAR()}>
-        Enter AR
-      </button>
+      <Compass />
 
-      {/* Three.js Canvas — transparent so camera shows through */}
+      {closestPOI && <ProximityIndicator poi={closestPOI} />}
+
+      {arFailed && (
+        <div style={styles.fallbackBanner}>
+          Demo mode — location AR unavailable
+        </div>
+      )}
+
+      {/* Debug overlay — remove after testing */}
+      <div style={styles.debug}>
+        <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'}</div>
+        <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
+        <div>POIs loaded: {allPois.length}</div>
+        <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
+        <div>Targeted: {targetedPoiId || 'none'}</div>
+        <div>Shutter: {targeted ? 'ENABLED' : 'disabled'}</div>
+        <div>Panel open: {activePoi ? activePoi.name : 'no'}</div>
+        <div>Debug sphere: {debugPlaced ? 'PLACED' : 'waiting...'}</div>
+      </div>
+
+      {/* HOW TO TEST — remove later */}
+      <div style={styles.howTo}>
+        1. Aim crosshair at red sphere{'\n'}
+        2. Crosshair turns green + shutter lights up{'\n'}
+        3. Tap shutter to open panel
+      </div>
+
       <Canvas
-        style={{ position: 'absolute', inset: 0 }}
+        style={{ position: 'absolute', inset: 0, zIndex: 1 }}
         camera={{ position: [0, 0, 0] }}
-        gl={{ alpha: true }}
+        gl={{ alpha: true, premultipliedAlpha: false }}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0)
         }}
       >
-        <XR store={xrStore}>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[2, 4, 2]} intensity={1} />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[2, 4, 2]} intensity={1} />
 
-          <DeviceOrientationCamera />
-          <FloatingSphere isTargeted={targeted} />
-          <CrosshairRaycaster onHit={() => setTargeted(true)} onMiss={() => setTargeted(false)} />
-        </XR>
+        {/* DEBUG: sphere that stays in front of camera after AR.js orientation settles */}
+        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={() => setDebugPlaced(true)} />
+        <DirectionArrow targetRef={debugSphereRef} visible={debugPlaced} />
+
+        {!arFailed ? (
+          <LocationARProvider onError={() => setArFailed(true)}>
+            <ARUpdater />
+            <ClampedPOIs
+              pois={allPois}
+              coords={coords}
+              targetedPoiId={targetedPoiId}
+            />
+          </LocationARProvider>
+        ) : (
+          <>
+            <FallbackDeviceOrientationCamera />
+            <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedPoiId} />
+          </>
+        )}
+
+        {/* Disable raycaster when panels are open */}
+        {!activePoi && (
+          <CrosshairRaycaster
+            onHit={(poiId) => setTargetedPoiId(poiId)}
+            onMiss={() => setTargetedPoiId(null)}
+          />
+        )}
+
+        {/* 3D panels rendered inside the scene */}
+        {activePoi && (
+          <POIPanels3D poi={activePoi} onClose={() => setActivePoi(null)} />
+        )}
       </Canvas>
 
       <Crosshair active={targeted} />
 
-      {targeted && !panelOpen && (
-        <button style={styles.openButton} onClick={() => setPanelOpen(true)}>
-          <span style={styles.openIcon}>⊕</span> View Details
-        </button>
+      {/* POI name hint when targeted */}
+      {targeted && !activePoi && (
+        <div style={styles.targetHint}>
+          {allPois.find((p) => p.id === targetedPoiId)?.name}
+        </div>
       )}
 
-      {panelOpen && <PanoramicView onClose={() => setPanelOpen(false)} />}
+      {!activePoi && (
+        <ShutterButton targeted={targeted} onCapture={handleCapture} />
+      )}
     </div>
   )
 }
@@ -314,5 +711,188 @@ const styles = {
     zIndex: 20,
     letterSpacing: '0.03em',
   },
-  openIcon: { fontSize: '1.2rem' },
+  compass: {
+    position: 'fixed',
+    top: '1rem',
+    left: '1rem',
+    zIndex: 20,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+    pointerEvents: 'none',
+  },
+  compassRing: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    border: '2px solid rgba(255, 255, 255, 0.3)',
+    background: 'rgba(0, 0, 0, 0.4)',
+    backdropFilter: 'blur(8px)',
+    position: 'relative',
+    transition: 'transform 0.15s ease-out',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compassNeedle: {
+    position: 'absolute',
+    top: '6px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '0',
+    height: '0',
+    borderLeft: '5px solid transparent',
+    borderRight: '5px solid transparent',
+    borderBottom: '12px solid #ff3333',
+  },
+  compassN: {
+    position: 'absolute',
+    top: '-1px',
+    left: '50%',
+    transform: 'translateX(-50%) translateY(-100%)',
+    fontSize: '0.55rem',
+    fontWeight: 700,
+    color: '#ff3333',
+    fontFamily: "'DM Sans', sans-serif",
+  },
+  compassLabel: {
+    fontSize: '0.6rem',
+    fontWeight: 600,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: "'DM Sans', sans-serif",
+    background: 'rgba(0, 0, 0, 0.4)',
+    padding: '2px 6px',
+    borderRadius: '4px',
+  },
+  debug: {
+    position: 'fixed',
+    bottom: '6rem',
+    left: '0.5rem',
+    zIndex: 30,
+    background: 'rgba(0, 0, 0, 0.7)',
+    color: '#0f0',
+    fontFamily: 'monospace',
+    fontSize: '0.6rem',
+    padding: '6px 8px',
+    borderRadius: '6px',
+    lineHeight: 1.6,
+    pointerEvents: 'none',
+    maxWidth: '60vw',
+    wordBreak: 'break-all',
+  },
+  howTo: {
+    position: 'fixed',
+    top: '50%',
+    right: '0.5rem',
+    transform: 'translateY(-50%)',
+    zIndex: 30,
+    background: 'rgba(0, 0, 0, 0.7)',
+    color: '#fff',
+    fontFamily: 'monospace',
+    fontSize: '0.55rem',
+    padding: '8px 10px',
+    borderRadius: '6px',
+    lineHeight: 1.8,
+    pointerEvents: 'none',
+    whiteSpace: 'pre-line',
+    maxWidth: '35vw',
+  },
+  permissionGate: {
+    width: '100vw',
+    height: '100vh',
+    background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2rem',
+  },
+  permissionCard: {
+    textAlign: 'center',
+    maxWidth: '320px',
+  },
+  permissionTitle: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    color: '#fff',
+    marginBottom: '1rem',
+  },
+  permissionDesc: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.85rem',
+    color: 'rgba(255, 255, 255, 0.6)',
+    lineHeight: 1.6,
+    marginBottom: '2rem',
+  },
+  permissionBtn: {
+    padding: '14px 36px',
+    borderRadius: '999px',
+    border: 'none',
+    background: '#00ffcc',
+    color: '#0a0a1a',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '1rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
+  },
+  shutter: {
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '64px',
+    height: '64px',
+    borderRadius: '50%',
+    background: 'rgba(255, 255, 255, 0.15)',
+    border: '3px solid rgba(255, 255, 255, 0.6)',
+    cursor: 'pointer',
+    zIndex: 20,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'opacity 0.2s',
+    padding: 0,
+  },
+  shutterInner: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    background: '#fff',
+    transition: 'background 0.2s, transform 0.2s',
+  },
+  targetHint: {
+    position: 'fixed',
+    bottom: '6.5rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 20,
+    background: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(8px)',
+    color: '#00ffcc',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    padding: '6px 16px',
+    borderRadius: '999px',
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
+  },
+  fallbackBanner: {
+    position: 'fixed',
+    top: '3.5rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 20,
+    background: 'rgba(255, 165, 0, 0.2)',
+    border: '1px solid rgba(255, 165, 0, 0.5)',
+    color: '#ffaa00',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    padding: '4px 12px',
+    borderRadius: '999px',
+    pointerEvents: 'none',
+  },
 }

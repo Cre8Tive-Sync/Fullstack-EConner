@@ -47,6 +47,8 @@ export default function POIMarker({ poi, isTargeted }) {
   })
 
   const emissiveIntensity = isTargeted ? 1.8 : 0.6
+  const sphereRadius = 1.25
+  const glowRadius = 1.5
 
   return (
     <group ref={groupRef}>
@@ -55,7 +57,7 @@ export default function POIMarker({ poi, isTargeted }) {
         ref={sphereRef}
         userData={{ interactive: true, poiId: poi.id }}
       >
-        <sphereGeometry args={[1.5, 32, 32]} />
+        <sphereGeometry args={[sphereRadius, 32, 32]} />
         <meshStandardMaterial
           color={poi.sphereColor}
           emissive={poi.sphereEmissive}
@@ -68,7 +70,7 @@ export default function POIMarker({ poi, isTargeted }) {
       {/* Outer glow ring when targeted */}
       {isTargeted && (
         <mesh userData={{ interactive: true, poiId: poi.id }}>
-          <sphereGeometry args={[1.8, 32, 32]} />
+          <sphereGeometry args={[glowRadius, 32, 32]} />
           <meshBasicMaterial
             color={poi.sphereColor}
             transparent
@@ -80,8 +82,8 @@ export default function POIMarker({ poi, isTargeted }) {
 
       {/* Floating name label */}
       <sprite
-        position={[0, 3, 0]}
-        scale={[6, 1.5, 1]}
+        position={[0, sphereRadius + 1, 0]}
+        scale={[4, 1, 1]}
         userData={{ interactive: true, poiId: poi.id }}
       >
         <spriteMaterial
