@@ -155,7 +155,7 @@ function FallbackDeviceOrientationCamera() {
 // Fallback: first POI directly in front, rest spread in an arc behind it
 function FallbackPOIMarkers({ pois, targetedPoiId }) {
   const groupRef = useRef()
-  const radius = 8
+  const radius = 5 // close enough to see clearly
 
   return (
     <group ref={groupRef}>
@@ -201,6 +201,69 @@ function CrosshairRaycaster({ onHit, onMiss }) {
   })
 
   return null
+}
+
+// DEBUG: places a red sphere 5m in front of wherever the camera is looking
+// after a short delay for AR.js orientation to settle
+function DebugForwardSphere({ poiId, sphereRef }) {
+  const { camera } = useThree()
+  const placed = useRef(false)
+  const timer = useRef(0)
+
+  useFrame((_, delta) => {
+    if (placed.current || !sphereRef.current) return
+
+    timer.current += delta
+    if (timer.current < 2) return
+
+    const forward = new THREE.Vector3(0, 0, -5)
+    forward.applyQuaternion(camera.quaternion)
+    sphereRef.current.position.copy(camera.position).add(forward)
+    placed.current = true
+  })
+
+  return (
+    <mesh ref={sphereRef} position={[0, -9999, 0]} userData={{ interactive: true, poiId }}>
+      <sphereGeometry args={[1, 16, 16]} />
+      <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
+    </mesh>
+  )
+}
+
+// DEBUG: 3D arrow that always points toward the debug sphere
+// Floats 1.5m in front of the camera and rotates to face the target
+function DirectionArrow({ targetRef }) {
+  const { camera } = useThree()
+  const arrowRef = useRef()
+
+  useFrame(() => {
+    if (!arrowRef.current || !targetRef?.current) return
+    // Check if target is still hidden
+    if (targetRef.current.position.y < -999) return
+
+    // Position arrow 1.5m in front of camera, slightly below center
+    const forward = new THREE.Vector3(0, -0.3, -1.5)
+    forward.applyQuaternion(camera.quaternion)
+    arrowRef.current.position.copy(camera.position).add(forward)
+
+    // Make arrow point toward the target sphere
+    arrowRef.current.lookAt(targetRef.current.position)
+  })
+
+  return (
+    <group ref={arrowRef}>
+      {/* Arrow shaft */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.15]}>
+        <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
+        <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={1.5} />
+      </mesh>
+      {/* Arrow head (cone) */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.4]}>
+        <coneGeometry args={[0.08, 0.2, 8]} />
+        <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={2} />
+      </mesh>
+    </group>
+  )
 }
 
 function Crosshair({ active }) {
@@ -276,23 +339,54 @@ function ClampedPOIs({ pois, coords, targetedPoiId }) {
 // ─── Compass HUD ────────────────────────────────────────────────────
 
 function Compass() {
-  const [heading, setHeading] = useState(0)
+  const [heading, setHeading] = useState(null) // null = no data yet
+  const smoothHeading = useRef(0)
 
   useEffect(() => {
+    let active = true
+
     const onOrientation = (e) => {
-      if (e.alpha != null) setHeading(e.alpha)
+      if (!active) return
+
+      // iOS provides webkitCompassHeading (true north, 0-360)
+      // Android/others: alpha is 0-360 but relative — we use it as best-effort
+      let h = null
+      if (e.webkitCompassHeading != null) {
+        h = e.webkitCompassHeading
+      } else if (e.alpha != null) {
+        // On Android, alpha=0 is wherever the phone was pointing at page load
+        // With absolute:true events this is true north; otherwise approximate
+        h = 360 - e.alpha
+      }
+
+      if (h != null) {
+        // Smooth the heading to avoid jitter
+        let delta = h - smoothHeading.current
+        if (delta > 180) delta -= 360
+        if (delta < -180) delta += 360
+        smoothHeading.current = (smoothHeading.current + delta * 0.3 + 360) % 360
+        setHeading(smoothHeading.current)
+      }
     }
+
+    // Try absolute orientation first (true north on Android)
+    window.addEventListener('deviceorientationabsolute', onOrientation)
     window.addEventListener('deviceorientation', onOrientation)
 
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission().catch(() => {})
     }
 
-    return () => window.removeEventListener('deviceorientation', onOrientation)
+    return () => {
+      active = false
+      window.removeEventListener('deviceorientationabsolute', onOrientation)
+      window.removeEventListener('deviceorientation', onOrientation)
+    }
   }, [])
 
   const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-  const index = Math.round(heading / 45) % 8
+  const h = heading ?? 0
+  const index = Math.round(h / 45) % 8
   const label = cardinals[index]
 
   return (
@@ -300,14 +394,16 @@ function Compass() {
       <div
         style={{
           ...styles.compassRing,
-          transform: `rotate(${-heading}deg)`,
+          transform: `rotate(${-h}deg)`,
         }}
       >
         {/* North needle */}
         <div style={styles.compassNeedle} />
         <span style={styles.compassN}>N</span>
       </div>
-      <span style={styles.compassLabel}>{label} {Math.round(heading)}°</span>
+      <span style={styles.compassLabel}>
+        {heading == null ? 'No compass' : `${label} ${Math.round(h)}°`}
+      </span>
     </div>
   )
 }
@@ -319,8 +415,9 @@ function useTestPOI(coords) {
   const testPoi = useRef(null)
 
   if (coords && !testPoi.current) {
-    // Offset ~1m north (latitude) — 1 degree latitude ≈ 111,320m
-    const offsetLat = 1 / 111320
+    // Offset ~10m north (latitude) — 1 degree latitude ≈ 111,320m
+    // Must be >= AR.js gpsMinDistance (5m) to actually register as a distinct position
+    const offsetLat = 10 / 111320
     testPoi.current = {
       id: 'poi-test',
       name: 'Test Marker',
@@ -385,6 +482,15 @@ export default function ARScene() {
         </div>
       )}
 
+      {/* Debug overlay — remove after testing */}
+      <div style={styles.debug}>
+        <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'}</div>
+        <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
+        <div>POIs loaded: {allPois.length}</div>
+        <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
+        <div>Targeted: {targetedPoiId || 'none'}</div>
+      </div>
+
       <Canvas
         style={{ position: 'absolute', inset: 0, zIndex: 1 }}
         camera={{ position: [0, 0, 0] }}
@@ -395,6 +501,10 @@ export default function ARScene() {
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 2]} intensity={1} />
+
+        {/* DEBUG: sphere that stays in front of camera after AR.js orientation settles */}
+        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} />
+        <DirectionArrow targetRef={debugSphereRef} />
 
         {!arFailed ? (
           <LocationARProvider onError={() => setArFailed(true)}>
@@ -554,5 +664,21 @@ const styles = {
     background: 'rgba(0, 0, 0, 0.4)',
     padding: '2px 6px',
     borderRadius: '4px',
+  },
+  debug: {
+    position: 'fixed',
+    bottom: '6rem',
+    left: '0.5rem',
+    zIndex: 30,
+    background: 'rgba(0, 0, 0, 0.7)',
+    color: '#0f0',
+    fontFamily: 'monospace',
+    fontSize: '0.6rem',
+    padding: '6px 8px',
+    borderRadius: '6px',
+    lineHeight: 1.6,
+    pointerEvents: 'none',
+    maxWidth: '60vw',
+    wordBreak: 'break-all',
   },
 }
