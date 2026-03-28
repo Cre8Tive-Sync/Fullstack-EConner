@@ -4,6 +4,32 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import PanelContent from './PanelContent'
 
+// Close button that follows the camera so it's always visible
+function ScreenCloseButton({ onClose }) {
+  const { camera } = useThree()
+  const groupRef = useRef()
+
+  useFrame(() => {
+    if (!groupRef.current) return
+    // Place below center of camera view, 2m out
+    const offset = new THREE.Vector3(0, -1, -2)
+    offset.applyQuaternion(camera.quaternion)
+    groupRef.current.position.copy(camera.position).add(offset)
+    // Face the camera
+    groupRef.current.quaternion.copy(camera.quaternion)
+  })
+
+  return (
+    <group ref={groupRef}>
+      <Html center style={{ pointerEvents: 'auto' }}>
+        <button style={styles.closeBtn} onClick={onClose}>
+          Close
+        </button>
+      </Html>
+    </group>
+  )
+}
+
 const PANEL_DEFS = [
   { id: 'overview', label: null, angleOffset: -0.55 },   // ~-31 degrees left
   { id: 'gallery',  label: 'Gallery',  angleOffset: 0 },  // center
@@ -80,23 +106,8 @@ export default function POIPanels3D({ poi, onClose }) {
         </group>
       ))}
 
-      {/* Close button — fixed to screen, not 3D space */}
-      <Html
-        center
-        fullscreen
-        style={{
-          position: 'fixed',
-          bottom: '2rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          pointerEvents: 'auto',
-          zIndex: 60,
-        }}
-      >
-        <button style={styles.closeBtn} onClick={onClose}>
-          Close
-        </button>
-      </Html>
+      {/* Close button — screen-space overlay anchored to camera */}
+      <ScreenCloseButton onClose={onClose} />
     </group>
   )
 }

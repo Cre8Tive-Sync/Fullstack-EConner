@@ -258,29 +258,26 @@ function DirectionArrow({ targetRef, visible }) {
     offset.applyQuaternion(camera.quaternion)
     groupRef.current.position.copy(camera.position).add(offset)
 
-    // Point the arrow toward the target
-    // lookAt makes local -Z face the target, but we built the arrow along +Z
-    // so we compute direction and use quaternion manually
+    // Point arrow toward target using simple quaternion from direction
     const dir = new THREE.Vector3()
     dir.subVectors(targetRef.current.position, groupRef.current.position).normalize()
+
+    // Build quaternion that rotates +Z to point along `dir`
+    const defaultDir = new THREE.Vector3(0, 0, 1)
     const quat = new THREE.Quaternion()
-    // Build rotation: default forward is +Z, we want to rotate to face `dir`
-    const up = new THREE.Vector3(0, 1, 0)
-    const mtx = new THREE.Matrix4()
-    mtx.lookAt(groupRef.current.position, targetRef.current.position, up)
-    quat.setFromRotationMatrix(mtx)
+    quat.setFromUnitVectors(defaultDir, dir)
     groupRef.current.quaternion.copy(quat)
   })
 
   return (
     <group ref={groupRef} visible={visible}>
-      {/* Shaft — along -Z (toward target after lookAt) */}
-      <mesh position={[0, 0, -0.1]} rotation={[Math.PI / 2, 0, 0]}>
+      {/* Shaft — along +Z */}
+      <mesh position={[0, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
         <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={1.5} />
       </mesh>
-      {/* Arrow head — cone tip pointing -Z (toward target after lookAt) */}
-      <mesh position={[0, 0, -0.35]} rotation={[Math.PI / 2, 0, 0]}>
+      {/* Arrow head — cone tip pointing +Z (rotate +90° around X: +Y → +Z) */}
+      <mesh position={[0, 0, 0.35]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.1, 0.25, 8]} />
         <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={2} />
       </mesh>
