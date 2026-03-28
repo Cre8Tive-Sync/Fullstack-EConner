@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import PanoramicView from './PanoramicView'
+import POIMarker from './POIMarker'
+import POIPanels3D from './POIPanels3D'
+import ProximityIndicator from './ProximityIndicator'
+import GPSPlacedObject from './GPSPlacedObject'
+import { useGeolocation } from './hooks/useGeolocation'
+import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
+import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
+import { POIS } from './data/pois'
 
-const xrStore = createXRStore()
+const MAX_MARKER_DISTANCE = 200
 
 // Shows rear camera as background
 function CameraBackground() {
@@ -167,7 +174,11 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    hit ? onHit() : onMiss()
+    if (hit) {
+      onHit(hit.object.userData.poiId)
+    } else {
+      onMiss()
+    }
   })
 
   return null
@@ -520,6 +531,28 @@ export default function ARScene() {
   return <ARSceneInner />
 }
 
+// ─── AR.js Location Provider + Updater ──────────────────────────────
+
+function LocationARProvider({ onError, children }) {
+  const arState = useLocationARSetup({ onError })
+
+  return (
+    <LocationARContext.Provider value={arState}>
+      {children}
+    </LocationARContext.Provider>
+  )
+}
+
+function ARUpdater() {
+  const arState = useLocationAR()
+
+  useFrame(() => {
+    arState?.orientControls?.current?.update()
+  })
+
+  return null
+}
+
 // ─── Main ARScene (rendered after permissions granted) ──────────────
 
 function ARSceneInner() {
@@ -635,7 +668,9 @@ function ARSceneInner() {
         </div>
       )}
 
-      {panelOpen && <PanoramicView onClose={() => setPanelOpen(false)} />}
+      {!activePoi && (
+        <ShutterButton targeted={targeted} onCapture={handleCapture} />
+      )}
     </div>
   )
 }
@@ -801,5 +836,63 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: '0.02em',
+  },
+  shutter: {
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '64px',
+    height: '64px',
+    borderRadius: '50%',
+    background: 'rgba(255, 255, 255, 0.15)',
+    border: '3px solid rgba(255, 255, 255, 0.6)',
+    cursor: 'pointer',
+    zIndex: 20,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'opacity 0.2s',
+    padding: 0,
+  },
+  shutterInner: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    background: '#fff',
+    transition: 'background 0.2s, transform 0.2s',
+  },
+  targetHint: {
+    position: 'fixed',
+    bottom: '6.5rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 20,
+    background: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(8px)',
+    color: '#00ffcc',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    padding: '6px 16px',
+    borderRadius: '999px',
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
+  },
+  fallbackBanner: {
+    position: 'fixed',
+    top: '3.5rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 20,
+    background: 'rgba(255, 165, 0, 0.2)',
+    border: '1px solid rgba(255, 165, 0, 0.5)',
+    color: '#ffaa00',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    padding: '4px 12px',
+    borderRadius: '999px',
+    pointerEvents: 'none',
   },
 }

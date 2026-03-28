@@ -15,11 +15,9 @@ export default function PanoramicView({ poi, onClose }) {
   // Gyroscope — move phone to rotate the arc
   useEffect(() => {
     const handleOrientation = (e) => {
-      const alpha = e.alpha ?? 0
       const alpha = e.alpha ?? 0 // compass heading 0–360
 
       if (baseYaw.current === null) {
-        baseYaw.current = alpha
         baseYaw.current = alpha // lock starting position
       }
 
@@ -27,7 +25,6 @@ export default function PanoramicView({ poi, onClose }) {
       if (delta > 180) delta -= 360
       if (delta < -180) delta += 360
 
-      setYaw(-delta * 0.6)
       setYaw(-delta * 0.6) // scale sensitivity
     }
 
