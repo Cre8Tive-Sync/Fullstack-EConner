@@ -48,34 +48,41 @@ export default function POIPanels3D({ poi, onClose }) {
   const { camera } = useThree()
   const groupRef = useRef()
 
-  // Capture the camera's forward direction at mount time.
-  // Panels are placed relative to where the user was looking when they opened.
-  const baseDirection = useMemo(() => {
+  // Capture camera position + forward direction once at mount time.
+  // Panels arc around the camera's position at open time, facing inward.
+  const { panelData } = useMemo(() => {
+    const pos = camera.position.clone()
     const forward = new THREE.Vector3(0, 0, -1)
     forward.applyQuaternion(camera.quaternion)
     // Project onto XZ plane for a horizontal arc
     forward.y = 0
     forward.normalize()
-    return forward
-  }, []) // intentionally empty — capture once on mount
 
-  // Compute panel world positions in an arc around the camera
-  const panelPositions = useMemo(() => {
-    const baseAngle = Math.atan2(baseDirection.x, -baseDirection.z)
+    const baseAngle = Math.atan2(forward.x, forward.z)
 
-    return PANEL_DEFS.map((def) => {
+    const data = PANEL_DEFS.map((def) => {
       const angle = baseAngle + def.angleOffset
-      const x = Math.sin(angle) * PANEL_DISTANCE
-      const z = -Math.cos(angle) * PANEL_DISTANCE
-      return new THREE.Vector3(x, PANEL_Y, z)
+      // Place panels in front of camera — forward is +Z in camera-local,
+      // so sin/cos relative to forward direction
+      const x = pos.x + Math.sin(angle) * PANEL_DISTANCE
+      const z = pos.z + Math.cos(angle) * PANEL_DISTANCE
+      const position = new THREE.Vector3(x, pos.y + PANEL_Y, z)
+
+      // Rotation: face the panel back toward the camera position
+      const dx = pos.x - x
+      const dz = pos.z - z
+      const faceAngle = Math.atan2(dx, dz)
+
+      return { position, faceAngle }
     })
-  }, [baseDirection])
+
+    return { panelData: data }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <group ref={groupRef}>
       {PANEL_DEFS.map((def, i) => (
-        <group key={def.id} position={panelPositions[i]}>
-          {/* Make the Html face the origin (where the user is standing) */}
+        <group key={def.id} position={panelData[i].position}>
           <Html
             center
             transform
@@ -86,8 +93,7 @@ export default function POIPanels3D({ poi, onClose }) {
               height: '360px',
               pointerEvents: 'auto',
             }}
-            // Face toward center (user position)
-            rotation={[0, Math.atan2(panelPositions[i].x, -panelPositions[i].z), 0]}
+            rotation={[0, panelData[i].faceAngle, 0]}
           >
             <div
               style={styles.panel}
