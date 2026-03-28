@@ -2,16 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { on, off } from '../../eventBridge'
 import PanelContent from './PanelContent'
 
-const PANELS = [
-  { id: 'gallery', label: 'Gallery', angle: -40 },
-  { id: 'info', label: 'Info', angle: 0 },
-  { id: 'video', label: 'Video', angle: 40 },
-]
+export default function PanoramicView({ poi, onClose }) {
+  const [yaw, setYaw] = useState(0)
+  const baseYaw = useRef(null)
 
-export default function PanoramicView({ onClose }) {
-  const [yaw, setYaw] = useState(0) // gyroscope rotation
-  const [activePanel, setActivePanel] = useState('info')
-  const baseYaw = useRef(null) // initial gyro reading
+  const PANELS = [
+    { id: 'overview', label: poi.name, angle: -41 },
+    { id: 'gallery', label: 'Gallery', angle: 0 },
+    { id: 'details', label: 'Details', angle: 41 },
+  ]
 
   // Gyroscope — move phone to rotate the arc
   useEffect(() => {
@@ -23,7 +22,6 @@ export default function PanoramicView({ onClose }) {
       }
 
       let delta = alpha - baseYaw.current
-      // Normalize to -180 / +180
       if (delta > 180) delta -= 360
       if (delta < -180) delta += 360
 
@@ -32,7 +30,6 @@ export default function PanoramicView({ onClose }) {
 
     window.addEventListener('deviceorientation', handleOrientation)
 
-    // iOS requires permission
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission().catch(console.error)
     }
@@ -40,7 +37,6 @@ export default function PanoramicView({ onClose }) {
     return () => window.removeEventListener('deviceorientation', handleOrientation)
   }, [])
 
-  // Tap outside (on the backdrop) closes
   const handleBackdropTap = (e) => {
     if (e.target === e.currentTarget) onClose()
   }
@@ -66,20 +62,17 @@ export default function PanoramicView({ onClose }) {
             key={panel.id}
             style={{
               ...styles.panel,
-              transform: `rotateY(${panel.angle}deg) translateZ(320px)`,
-              opacity: activePanel === panel.id ? 1 : 0.5,
-              scale: activePanel === panel.id ? '1' : '0.92',
+              transform: `rotateY(${panel.angle}deg) translateZ(-360px)`,
+              opacity: 1,
+              scale: '1',
             }}
-            onClick={(e) => {
-              e.stopPropagation()
-              setActivePanel(panel.id)
-            }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Panel tab label */}
             <div style={styles.panelTab}>{panel.label}</div>
 
             {/* Panel content */}
-            <PanelContent type={panel.id} />
+            <PanelContent type={panel.id} poi={poi} />
           </div>
         ))}
       </div>
@@ -102,7 +95,6 @@ const styles = {
     position: 'fixed',
     inset: 0,
     zIndex: 50,
-    // AR stays visible behind — semi transparent background only
     background: 'rgba(0, 0, 0, 0.35)',
     backdropFilter: 'blur(2px)',
     perspective: '1000px',
