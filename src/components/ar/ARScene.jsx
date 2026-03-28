@@ -203,63 +203,81 @@ function CrosshairRaycaster({ onHit, onMiss }) {
   return null
 }
 
-// DEBUG: places a red sphere 5m in front of wherever the camera is looking
-// after a short delay for AR.js orientation to settle
-function DebugForwardSphere({ poiId, sphereRef }) {
+// DEBUG: red sphere placed 5m in front of camera after 2s delay
+function DebugForwardSphere({ poiId, sphereRef, onPlaced }) {
   const { camera } = useThree()
+  const [show, setShow] = useState(false)
   const placed = useRef(false)
   const timer = useRef(0)
+  const savedPos = useRef(new THREE.Vector3(0, -9999, 0))
 
   useFrame((_, delta) => {
-    if (placed.current || !sphereRef.current) return
+    if (placed.current) return
 
     timer.current += delta
     if (timer.current < 2) return
 
+    // Place sphere 5m in front of wherever the camera is looking
     const forward = new THREE.Vector3(0, 0, -5)
     forward.applyQuaternion(camera.quaternion)
-    sphereRef.current.position.copy(camera.position).add(forward)
+    savedPos.current.copy(camera.position).add(forward)
     placed.current = true
+    setShow(true)
+    onPlaced?.()
   })
 
+  if (!show) return null
+
   return (
-    <mesh ref={sphereRef} position={[0, -9999, 0]} userData={{ interactive: true, poiId }}>
+    <mesh
+      ref={sphereRef}
+      position={[savedPos.current.x, savedPos.current.y, savedPos.current.z]}
+      userData={{ interactive: true, poiId }}
+    >
       <sphereGeometry args={[1, 16, 16]} />
       <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
     </mesh>
   )
 }
 
-// DEBUG: 3D arrow that always points toward the debug sphere
-// Floats 1.5m in front of the camera and rotates to face the target
-function DirectionArrow({ targetRef }) {
+// DEBUG: green arrow that follows the camera and always points at the target
+function DirectionArrow({ targetRef, visible }) {
   const { camera } = useThree()
-  const arrowRef = useRef()
+  const groupRef = useRef()
 
   useFrame(() => {
-    if (!arrowRef.current || !targetRef?.current) return
-    // Check if target is still hidden
-    if (targetRef.current.position.y < -999) return
+    if (!groupRef.current || !targetRef?.current) return
+    if (!targetRef.current.visible) return
 
-    // Position arrow 1.5m in front of camera, slightly below center
-    const forward = new THREE.Vector3(0, -0.3, -1.5)
-    forward.applyQuaternion(camera.quaternion)
-    arrowRef.current.position.copy(camera.position).add(forward)
+    // Stick the arrow 1.5m in front of camera, slightly below center
+    const offset = new THREE.Vector3(0, -0.3, -1.5)
+    offset.applyQuaternion(camera.quaternion)
+    groupRef.current.position.copy(camera.position).add(offset)
 
-    // Make arrow point toward the target sphere
-    arrowRef.current.lookAt(targetRef.current.position)
+    // Point the arrow toward the target
+    // lookAt makes local -Z face the target, but we built the arrow along +Z
+    // so we compute direction and use quaternion manually
+    const dir = new THREE.Vector3()
+    dir.subVectors(targetRef.current.position, groupRef.current.position).normalize()
+    const quat = new THREE.Quaternion()
+    // Build rotation: default forward is +Z, we want to rotate to face `dir`
+    const up = new THREE.Vector3(0, 1, 0)
+    const mtx = new THREE.Matrix4()
+    mtx.lookAt(groupRef.current.position, targetRef.current.position, up)
+    quat.setFromRotationMatrix(mtx)
+    groupRef.current.quaternion.copy(quat)
   })
 
   return (
-    <group ref={arrowRef}>
-      {/* Arrow shaft */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.15]}>
+    <group ref={groupRef} visible={visible}>
+      {/* Shaft — cylinder rotated from Y to Z axis */}
+      <mesh position={[0, 0, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
         <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={1.5} />
       </mesh>
-      {/* Arrow head (cone) */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.4]}>
-        <coneGeometry args={[0.08, 0.2, 8]} />
+      {/* Arrow head — cone tip pointing toward +Z (toward target via lookAt) */}
+      <mesh position={[0, 0, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.1, 0.25, 8]} />
         <meshStandardMaterial color="#00ff88" emissive="#00ff88" emissiveIntensity={2} />
       </mesh>
     </group>
@@ -443,12 +461,71 @@ function useTestPOI(coords) {
   return testPoi.current
 }
 
-// ─── Main ARScene ────────────────────────────────────────────────────
+// ─── Permission Gate ─────────────────────────────────────────────────
+// iOS requires deviceorientation permission from a user gesture.
+// This screen requests all permissions before launching the AR scene.
 
 export default function ARScene() {
+  const [permitted, setPermitted] = useState(false)
+
+  const requestPermissions = async () => {
+    // 1. Device orientation (iOS 13+)
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      try {
+        const result = await DeviceOrientationEvent.requestPermission()
+        if (result !== 'granted') {
+          alert('Device orientation permission is required for AR.')
+          return
+        }
+      } catch (err) {
+        console.warn('Orientation permission error:', err)
+      }
+    }
+
+    // 2. Camera
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+      })
+      // Stop the test stream — CameraBackground will open its own
+      stream.getTracks().forEach((t) => t.stop())
+    } catch (err) {
+      console.warn('Camera permission error:', err)
+    }
+
+    // 3. Geolocation (just trigger the prompt)
+    navigator.geolocation?.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true })
+
+    setPermitted(true)
+  }
+
+  if (!permitted) {
+    return (
+      <div style={styles.permissionGate}>
+        <div style={styles.permissionCard}>
+          <h1 style={styles.permissionTitle}>Cre8Tive Sync AR</h1>
+          <p style={styles.permissionDesc}>
+            This app uses your camera, GPS, and motion sensors to show
+            points of interest in augmented reality.
+          </p>
+          <button style={styles.permissionBtn} onClick={requestPermissions}>
+            Start AR Experience
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <ARSceneInner />
+}
+
+// ─── Main ARScene (rendered after permissions granted) ──────────────
+
+function ARSceneInner() {
   const [targetedPoiId, setTargetedPoiId] = useState(null)
   const [activePoi, setActivePoi] = useState(null)
   const [arFailed, setArFailed] = useState(false)
+  const [debugPlaced, setDebugPlaced] = useState(false)
   const debugSphereRef = useRef()
 
   const { coords } = useGeolocation()
@@ -490,6 +567,16 @@ export default function ARScene() {
         <div>POIs loaded: {allPois.length}</div>
         <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
         <div>Targeted: {targetedPoiId || 'none'}</div>
+        <div>Shutter: {targeted ? 'ENABLED' : 'disabled'}</div>
+        <div>Panel open: {activePoi ? activePoi.name : 'no'}</div>
+        <div>Debug sphere: {debugPlaced ? 'PLACED' : 'waiting...'}</div>
+      </div>
+
+      {/* HOW TO TEST — remove later */}
+      <div style={styles.howTo}>
+        1. Aim crosshair at red sphere{'\n'}
+        2. Crosshair turns green + shutter lights up{'\n'}
+        3. Tap shutter to open panel
       </div>
 
       <Canvas
@@ -504,8 +591,8 @@ export default function ARScene() {
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
         {/* DEBUG: sphere that stays in front of camera after AR.js orientation settles */}
-        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} />
-        <DirectionArrow targetRef={debugSphereRef} />
+        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={() => setDebugPlaced(true)} />
+        <DirectionArrow targetRef={debugSphereRef} visible={debugPlaced} />
 
         {!arFailed ? (
           <LocationARProvider onError={() => setArFailed(true)}>
@@ -681,5 +768,61 @@ const styles = {
     pointerEvents: 'none',
     maxWidth: '60vw',
     wordBreak: 'break-all',
+  },
+  howTo: {
+    position: 'fixed',
+    top: '50%',
+    right: '0.5rem',
+    transform: 'translateY(-50%)',
+    zIndex: 30,
+    background: 'rgba(0, 0, 0, 0.7)',
+    color: '#fff',
+    fontFamily: 'monospace',
+    fontSize: '0.55rem',
+    padding: '8px 10px',
+    borderRadius: '6px',
+    lineHeight: 1.8,
+    pointerEvents: 'none',
+    whiteSpace: 'pre-line',
+    maxWidth: '35vw',
+  },
+  permissionGate: {
+    width: '100vw',
+    height: '100vh',
+    background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2rem',
+  },
+  permissionCard: {
+    textAlign: 'center',
+    maxWidth: '320px',
+  },
+  permissionTitle: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    color: '#fff',
+    marginBottom: '1rem',
+  },
+  permissionDesc: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.85rem',
+    color: 'rgba(255, 255, 255, 0.6)',
+    lineHeight: 1.6,
+    marginBottom: '2rem',
+  },
+  permissionBtn: {
+    padding: '14px 36px',
+    borderRadius: '999px',
+    border: 'none',
+    background: '#00ffcc',
+    color: '#0a0a1a',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '1rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
   },
 }
