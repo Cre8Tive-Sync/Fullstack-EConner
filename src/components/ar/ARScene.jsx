@@ -40,27 +40,62 @@ function CameraBackground() {
   const videoRef = useRef()
 
   useEffect(() => {
-    if (!navigator.mediaDevices) return
+    if (!navigator.mediaDevices) {
+      console.warn('navigator.mediaDevices not available (requires HTTPS)')
+      return
+    }
 
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
-      .then((stream) => {
-        if (videoRef.current) {
+    let stopped = false
+
+    function startCamera() {
+      if (stopped || !videoRef.current) return
+
+      navigator.mediaDevices
+        .getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        })
+        .then((stream) => {
+          if (stopped || !videoRef.current) {
+            stream.getTracks().forEach((t) => t.stop())
+            return
+          }
           videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
-        }
-      })
-      .catch((err) => console.warn('Camera access denied:', err))
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current
+              ?.play()
+              .catch((err) => console.warn('Video play failed:', err))
+          }
+
+          // iOS kills the camera stream when other permission prompts
+          // (geolocation, device orientation) appear — restart if that happens
+          stream.getVideoTracks().forEach((track) => {
+            track.addEventListener('ended', () => {
+              console.warn('Camera track ended, restarting...')
+              startCamera()
+            })
+          })
+        })
+        .catch((err) => console.warn('Camera access denied:', err))
+    }
+
+    startCamera()
 
     return () => {
-      videoRef.current?.srcObject?.getTracks().forEach((t) => t.stop())
+      stopped = true
+      const tracks = videoRef.current?.srcObject?.getTracks()
+      if (tracks) tracks.forEach((t) => t.stop())
     }
   }, [])
 
   return (
     <video
       ref={videoRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      style={{
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        objectFit: 'cover', zIndex: 0,
+      }}
       autoPlay
       playsInline
       muted
@@ -261,9 +296,9 @@ export default function ARScene() {
       )}
 
       <Canvas
-        style={{ position: 'absolute', inset: 0 }}
+        style={{ position: 'absolute', inset: 0, zIndex: 1 }}
         camera={{ position: [0, 0, 0] }}
-        gl={{ alpha: true }}
+        gl={{ alpha: true, premultipliedAlpha: false }}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0)
         }}
