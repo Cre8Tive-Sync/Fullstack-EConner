@@ -449,6 +449,7 @@ export default function ARScene() {
   const [targetedPoiId, setTargetedPoiId] = useState(null)
   const [activePoi, setActivePoi] = useState(null)
   const [arFailed, setArFailed] = useState(false)
+  const debugSphereRef = useRef()
 
   const { coords } = useGeolocation()
   const testPoi = useTestPOI(coords)
