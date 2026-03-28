@@ -3,18 +3,24 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import POIMarker from './POIMarker'
 import POIPanels3D from './POIPanels3D'
+import VRPanelContent from './VRPanelContent'
+import StereoRenderer from './StereoRenderer'
+import DwellRaycaster from './DwellRaycaster'
 import ProximityIndicator from './ProximityIndicator'
 import GPSPlacedObject from './GPSPlacedObject'
 import { useGeolocation } from './hooks/useGeolocation'
 import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
 import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
+import { useOrientationDetect } from './hooks/useOrientationDetect'
 import { POIS } from './data/pois'
 
 const MAX_MARKER_DISTANCE = 200
 
-// Shows rear camera as background
-function CameraBackground() {
+// Shows rear camera as background — supports mono and stereo (VR) layout
+function CameraBackground({ vrMode }) {
   const videoRef = useRef()
+  const videoRef2 = useRef()
+  const streamRef = useRef(null)
 
   useEffect(() => {
     if (!navigator.mediaDevices) {
@@ -25,7 +31,7 @@ function CameraBackground() {
     let stopped = false
 
     function startCamera() {
-      if (stopped || !videoRef.current) return
+      if (stopped) return
 
       navigator.mediaDevices
         .getUserMedia({
@@ -37,19 +43,23 @@ function CameraBackground() {
           audio: false,
         })
         .then((stream) => {
-          if (stopped || !videoRef.current) {
+          if (stopped) {
             stream.getTracks().forEach((t) => t.stop())
             return
           }
-          videoRef.current.srcObject = stream
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current
-              ?.play()
-              .catch((err) => console.warn('Video play failed:', err))
-          }
+          streamRef.current = stream
 
-          // iOS kills the camera stream when other permission prompts
-          // (geolocation, device orientation) appear — restart if that happens
+          // Assign stream to both video elements
+          const assignStream = (ref) => {
+            if (!ref.current) return
+            ref.current.srcObject = stream
+            ref.current.onloadedmetadata = () => {
+              ref.current?.play().catch((err) => console.warn('Video play failed:', err))
+            }
+          }
+          assignStream(videoRef)
+          assignStream(videoRef2)
+
           stream.getVideoTracks().forEach((track) => {
             track.addEventListener('ended', () => {
               console.warn('Camera track ended, restarting...')
@@ -64,10 +74,46 @@ function CameraBackground() {
 
     return () => {
       stopped = true
-      const tracks = videoRef.current?.srcObject?.getTracks()
-      if (tracks) tracks.forEach((t) => t.stop())
+      streamRef.current?.getTracks().forEach((t) => t.stop())
     }
   }, [])
+
+  // When switching to/from VR, reassign stream to new video elements
+  useEffect(() => {
+    const stream = streamRef.current
+    if (!stream) return
+    const assign = (ref) => {
+      if (!ref.current) return
+      ref.current.srcObject = stream
+      ref.current.play().catch(() => {})
+    }
+    assign(videoRef)
+    assign(videoRef2)
+  }, [vrMode])
+
+  const videoProps = {
+    autoPlay: true,
+    playsInline: true,
+    muted: true,
+    'webkit-playsinline': 'true',
+  }
+
+  if (vrMode) {
+    return (
+      <div style={{ display: 'flex', position: 'absolute', inset: 0, zIndex: 0 }}>
+        <video
+          ref={videoRef}
+          style={{ width: '50%', height: '100%', objectFit: 'cover' }}
+          {...videoProps}
+        />
+        <video
+          ref={videoRef2}
+          style={{ width: '50%', height: '100%', objectFit: 'cover' }}
+          {...videoProps}
+        />
+      </div>
+    )
+  }
 
   return (
     <video
@@ -77,10 +123,7 @@ function CameraBackground() {
         width: '100%', height: '100%',
         objectFit: 'cover', zIndex: 0,
       }}
-      autoPlay
-      playsInline
-      muted
-      {...{ 'webkit-playsinline': 'true' }}
+      {...videoProps}
     />
   )
 }
@@ -573,10 +616,43 @@ function ARSceneInner() {
   const [activePoi, setActivePoi] = useState(null)
   const [arFailed, setArFailed] = useState(false)
   const [debugPlaced, setDebugPlaced] = useState(false)
+  const [vrMode, setVrMode] = useState(false)
   const debugSphereRef = useRef()
 
+  const { isLandscape } = useOrientationDetect()
   const { coords } = useGeolocation()
   const testPoi = useTestPOI(coords)
+
+  // Auto-toggle VR on landscape, off on portrait
+  useEffect(() => {
+    setVrMode(isLandscape)
+  }, [isLandscape])
+
+  // Request fullscreen + wake lock when entering VR
+  useEffect(() => {
+    if (!vrMode) return
+
+    // Fullscreen
+    const el = document.documentElement
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {})
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen()
+    }
+
+    // Wake lock (prevent screen sleep)
+    let wakeLock = null
+    if (navigator.wakeLock) {
+      navigator.wakeLock.request('screen').then((wl) => { wakeLock = wl }).catch(() => {})
+    }
+
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {})
+      }
+      wakeLock?.release()
+    }
+  }, [vrMode])
 
   // Merge test POI (first) with real POIs so it appears at index 0
   const allPois = useMemo(() => {
@@ -602,39 +678,66 @@ function ARSceneInner() {
     })
   }, [allPois])
 
+  // VR dwell activation: when user gazes at a POI for 2s
+  const handleDwellActivate = useCallback((poiId) => {
+    if (poiId === '__vr_close__') {
+      // Close panel via dwell on the VR close button
+      setActivePoi(null)
+      return
+    }
+    const poi = allPois.find((p) => p.id === poiId)
+    if (poi) setActivePoi(poi)
+  }, [allPois])
+
+  const handleDwellTargetChange = useCallback((poiId) => {
+    setTargetedPoiId(poiId)
+  }, [])
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* Rear camera feed as background */}
-      <CameraBackground />
+      <CameraBackground vrMode={vrMode} />
 
-      <Compass />
+      {/* VR toggle button */}
+      <button
+        style={styles.vrToggle}
+        onClick={() => setVrMode((v) => !v)}
+      >
+        {vrMode ? 'Exit VR' : 'VR'}
+      </button>
 
-      {closestPOI && <ProximityIndicator poi={closestPOI} />}
+      {/* Hide DOM overlays in VR mode — they can't split per eye */}
+      {!vrMode && <Compass />}
+      {!vrMode && closestPOI && <ProximityIndicator poi={closestPOI} />}
 
-      {arFailed && (
+      {!vrMode && arFailed && (
         <div style={styles.fallbackBanner}>
           Demo mode — location AR unavailable
         </div>
       )}
 
-      {/* Debug overlay — remove after testing */}
-      <div style={styles.debug}>
-        <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'}</div>
-        <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
-        <div>POIs loaded: {allPois.length}</div>
-        <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
-        <div>Targeted: {targetedPoiId || 'none'}</div>
-        <div>Shutter: {targeted ? 'ENABLED' : 'disabled'}</div>
-        <div>Panel open: {activePoi ? activePoi.name : 'no'}</div>
-        <div>Debug sphere: {debugPlaced ? 'PLACED' : 'waiting...'}</div>
-      </div>
+      {/* Debug overlay — hide in VR */}
+      {!vrMode && (
+        <div style={styles.debug}>
+          <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'} {vrMode ? '+ VR' : ''}</div>
+          <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
+          <div>POIs loaded: {allPois.length}</div>
+          <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
+          <div>Targeted: {targetedPoiId || 'none'}</div>
+          <div>Shutter: {targeted ? 'ENABLED' : 'disabled'}</div>
+          <div>Panel open: {activePoi ? activePoi.name : 'no'}</div>
+          <div>Debug sphere: {debugPlaced ? 'PLACED' : 'waiting...'}</div>
+        </div>
+      )}
 
-      {/* HOW TO TEST — remove later */}
-      <div style={styles.howTo}>
-        1. Aim crosshair at red sphere{'\n'}
-        2. Crosshair turns green + shutter lights up{'\n'}
-        3. Tap shutter to open panel
-      </div>
+      {/* HOW TO TEST — hide in VR */}
+      {!vrMode && (
+        <div style={styles.howTo}>
+          1. Aim crosshair at red sphere{'\n'}
+          2. Crosshair turns green + shutter lights up{'\n'}
+          3. Tap shutter to open panel
+        </div>
+      )}
 
       <Canvas
         style={{ position: 'absolute', inset: 0, zIndex: 1 }}
@@ -644,6 +747,9 @@ function ARSceneInner() {
           gl.setClearColor(0x000000, 0)
         }}
       >
+        {/* Stereo renderer — takes over when VR mode is on */}
+        <StereoRenderer enabled={vrMode} />
+
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
@@ -667,31 +773,47 @@ function ARSceneInner() {
           </>
         )}
 
-        {/* Disable raycaster when panels are open */}
-        {!activePoi && (
+        {/* Raycaster: dwell-based in VR, crosshair + shutter in AR */}
+        {!activePoi && vrMode && (
+          <DwellRaycaster
+            onActivate={handleDwellActivate}
+            onTargetChange={handleDwellTargetChange}
+          />
+        )}
+        {!activePoi && !vrMode && (
           <CrosshairRaycaster
             onHit={handleHit}
             onMiss={handleMiss}
           />
         )}
 
-        {/* 3D panels rendered inside the scene */}
-        {activePoi && (
+        {/* 3D panels — pure Three.js in VR, Html-based in AR */}
+        {activePoi && vrMode && (
+          <VRPanelContent poi={activePoi} onClose={handleClosePanel} />
+        )}
+        {activePoi && !vrMode && (
           <POIPanels3D poi={activePoi} onClose={handleClosePanel} />
         )}
       </Canvas>
 
-      <Crosshair active={targeted} />
+      {/* DOM overlays — only in AR mode */}
+      {!vrMode && <Crosshair active={targeted} />}
 
-      {/* POI name hint when targeted */}
-      {targeted && !activePoi && (
+      {!vrMode && targeted && !activePoi && (
         <div style={styles.targetHint}>
           {allPois.find((p) => p.id === targetedPoiId)?.name}
         </div>
       )}
 
-      {!activePoi && (
+      {!vrMode && !activePoi && (
         <ShutterButton targeted={targeted} onCapture={handleCapture} />
+      )}
+
+      {/* VR mode hint */}
+      {vrMode && !activePoi && (
+        <div style={styles.vrHint}>
+          Gaze at a marker for 2s to open info
+        </div>
       )}
     </div>
   )
@@ -916,5 +1038,39 @@ const styles = {
     padding: '4px 12px',
     borderRadius: '999px',
     pointerEvents: 'none',
+  },
+  vrToggle: {
+    position: 'fixed',
+    top: '1rem',
+    right: '1rem',
+    zIndex: 30,
+    padding: '8px 16px',
+    borderRadius: '999px',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    background: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(8px)',
+    color: '#fff',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    letterSpacing: '0.06em',
+  },
+  vrHint: {
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 20,
+    background: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(8px)',
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    padding: '6px 16px',
+    borderRadius: '999px',
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
   },
 }
