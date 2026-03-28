@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { on, off } from '../../eventBridge'
 import PanelContent from './PanelContent'
 
 export default function PanoramicView({ poi, onClose }) {
@@ -7,17 +8,19 @@ export default function PanoramicView({ poi, onClose }) {
 
   const PANELS = [
     { id: 'overview', label: poi.name, angle: -41 },
-    { id: 'gallery',  label: 'Gallery',  angle: 0 },
-    { id: 'details',  label: 'Details',  angle: 41 },
+    { id: 'gallery', label: 'Gallery', angle: 0 },
+    { id: 'details', label: 'Details', angle: 41 },
   ]
 
   // Gyroscope — move phone to rotate the arc
   useEffect(() => {
     const handleOrientation = (e) => {
       const alpha = e.alpha ?? 0
+      const alpha = e.alpha ?? 0 // compass heading 0–360
 
       if (baseYaw.current === null) {
         baseYaw.current = alpha
+        baseYaw.current = alpha // lock starting position
       }
 
       let delta = alpha - baseYaw.current
@@ -25,6 +28,7 @@ export default function PanoramicView({ poi, onClose }) {
       if (delta < -180) delta += 360
 
       setYaw(-delta * 0.6)
+      setYaw(-delta * 0.6) // scale sensitivity
     }
 
     window.addEventListener('deviceorientation', handleOrientation)
@@ -40,9 +44,15 @@ export default function PanoramicView({ poi, onClose }) {
     if (e.target === e.currentTarget) onClose()
   }
 
+  // Listen for UI-originated close events (from Vue)
+  useEffect(() => {
+    const handler = () => onClose()
+    on('ui:closePanel', handler)
+    return () => off('ui:closePanel', handler)
+  }, [onClose])
+
   return (
     <div style={styles.overlay} onClick={handleBackdropTap}>
-
       {/* Arc container — rotates with gyroscope */}
       <div
         style={{
@@ -76,7 +86,9 @@ export default function PanoramicView({ poi, onClose }) {
       </div>
 
       {/* Close button */}
-      <button style={styles.closeBtn} onClick={onClose}>✕</button>
+      <button style={styles.closeBtn} onClick={onClose}>
+        ✕
+      </button>
     </div>
   )
 }

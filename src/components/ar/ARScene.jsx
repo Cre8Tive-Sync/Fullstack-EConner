@@ -1,41 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import POIPanels3D from './POIPanels3D'
-import ProximityIndicator from './ProximityIndicator'
-import GPSPlacedObject from './GPSPlacedObject'
-import POIMarker from './POIMarker'
-import { useGeolocation } from './hooks/useGeolocation'
-import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
-import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
-import { POIS } from './data/pois'
+import PanoramicView from './PanoramicView'
 
-const MAX_MARKER_DISTANCE = 200 // meters
+const xrStore = createXRStore()
 
-// ─── AR.js Integration Components ────────────────────────────────────
-
-function LocationARProvider({ onError, children }) {
-  const arState = useLocationARSetup({ onError })
-
-  return (
-    <LocationARContext.Provider value={arState}>
-      {children}
-    </LocationARContext.Provider>
-  )
-}
-
-function ARUpdater() {
-  const { orientControls } = useLocationAR()
-
-  useFrame(() => {
-    orientControls?.current?.update()
-  }, -1)
-
-  return null
-}
-
-// ─── Fallback Components (used when AR.js fails) ────────────────────
-
+// Shows rear camera as background
 function CameraBackground() {
   const videoRef = useRef()
 
@@ -197,11 +167,7 @@ function CrosshairRaycaster({ onHit, onMiss }) {
     raycaster.current.setFromCamera({ x: 0, y: 0 }, camera)
     const hits = raycaster.current.intersectObjects(scene.children, true)
     const hit = hits.find((h) => h.object.userData.interactive)
-    if (hit && hit.object.userData.poiId) {
-      onHit(hit.object.userData.poiId)
-    } else {
-      onMiss()
-    }
+    hit ? onHit() : onMiss()
   })
 
   return null
@@ -287,18 +253,57 @@ function DirectionArrow({ targetRef, visible }) {
 
 function Crosshair({ active }) {
   return (
-    <div style={{
-      position: 'fixed', top: '50%', left: '50%',
-      transform: 'translate(-50%, -50%)',
-      pointerEvents: 'none', zIndex: 10,
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    >
       <svg width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r="8" fill="none"
-          stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'} strokeWidth="1.5" />
-        <line x1="20" y1="4" x2="20" y2="13" stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'} strokeWidth="1.5" />
-        <line x1="20" y1="27" x2="20" y2="36" stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'} strokeWidth="1.5" />
-        <line x1="4" y1="20" x2="13" y2="20" stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'} strokeWidth="1.5" />
-        <line x1="27" y1="20" x2="36" y2="20" stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'} strokeWidth="1.5" />
+        <circle
+          cx="20"
+          cy="20"
+          r="8"
+          fill="none"
+          stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'}
+          strokeWidth="1.5"
+        />
+        <line
+          x1="20"
+          y1="4"
+          x2="20"
+          y2="13"
+          stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'}
+          strokeWidth="1.5"
+        />
+        <line
+          x1="20"
+          y1="27"
+          x2="20"
+          y2="36"
+          stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'}
+          strokeWidth="1.5"
+        />
+        <line
+          x1="4"
+          y1="20"
+          x2="13"
+          y2="20"
+          stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'}
+          strokeWidth="1.5"
+        />
+        <line
+          x1="27"
+          y1="20"
+          x2="36"
+          y2="20"
+          stroke={active ? '#00ffcc' : 'rgba(255,255,255,0.8)'}
+          strokeWidth="1.5"
+        />
         {active && <circle cx="20" cy="20" r="3" fill="#00ffcc" />}
       </svg>
     </div>
@@ -334,12 +339,7 @@ function ClampedPOIs({ pois, coords, targetedPoiId }) {
     if (!coords) return pois.map((poi) => ({ poi, lat: poi.lat, lng: poi.lng }))
 
     return pois.map((poi) => {
-      const clamped = getClampedCoords(
-        coords.latitude,
-        coords.longitude,
-        poi,
-        MAX_MARKER_DISTANCE
-      )
+      const clamped = getClampedCoords(coords.latitude, coords.longitude, poi, MAX_MARKER_DISTANCE)
       return { poi, lat: clamped.lat, lng: clamped.lng }
     })
   }, [pois, coords?.latitude, coords?.longitude])
@@ -549,6 +549,7 @@ function ARSceneInner() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+      {/* Rear camera feed as background */}
       <CameraBackground />
 
       <Compass />
@@ -625,8 +626,7 @@ function ARSceneInner() {
         )}
       </Canvas>
 
-      {/* Hide crosshair + UI when panels are open */}
-      {!activePoi && <Crosshair active={targeted} />}
+      <Crosshair active={targeted} />
 
       {/* POI name hint when targeted */}
       {targeted && !activePoi && (
@@ -635,70 +635,46 @@ function ARSceneInner() {
         </div>
       )}
 
-      {!activePoi && (
-        <ShutterButton targeted={targeted} onCapture={handleCapture} />
-      )}
+      {panelOpen && <PanoramicView onClose={() => setPanelOpen(false)} />}
     </div>
   )
 }
 
 const styles = {
-  shutter: {
+  arButton: {
     position: 'fixed',
-    bottom: '2rem',
+    top: '1.5rem',
+    right: '1.5rem',
+    padding: '0.5rem 1.2rem',
+    background: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(10px)',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.3)',
+    borderRadius: '999px',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    zIndex: 20,
+  },
+  openButton: {
+    position: 'fixed',
+    bottom: '3rem',
     left: '50%',
     transform: 'translateX(-50%)',
-    width: '68px',
-    height: '68px',
-    borderRadius: '50%',
-    border: '3px solid rgba(255, 255, 255, 0.8)',
-    background: 'transparent',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    zIndex: 20,
-    transition: 'opacity 0.2s',
-  },
-  shutterInner: {
-    width: '52px',
-    height: '52px',
-    borderRadius: '50%',
-    transition: 'background 0.2s, transform 0.15s',
-  },
-  fallbackBanner: {
-    position: 'fixed',
-    top: '1rem',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    padding: '0.4rem 1rem',
-    background: 'rgba(255, 165, 0, 0.2)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255, 165, 0, 0.4)',
-    borderRadius: '999px',
-    color: '#ffaa00',
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    zIndex: 15,
-    pointerEvents: 'none',
-  },
-  targetHint: {
-    position: 'fixed',
-    top: '60%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    padding: '0.35rem 1rem',
-    background: 'rgba(0, 0, 0, 0.5)',
-    backdropFilter: 'blur(8px)',
+    gap: '8px',
+    padding: '0.9rem 2rem',
+    background: 'rgba(0, 255, 204, 0.15)',
+    backdropFilter: 'blur(12px)',
+    border: '1px solid #00ffcc',
     borderRadius: '999px',
     color: '#00ffcc',
+    fontSize: '1rem',
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.8rem',
     fontWeight: 600,
-    zIndex: 15,
-    pointerEvents: 'none',
-    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    zIndex: 20,
+    letterSpacing: '0.03em',
   },
   compass: {
     position: 'fixed',

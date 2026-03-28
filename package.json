@@ -28,10 +28,21 @@
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.0",
     "@types/node": "^24.11.0",
+<<<<<<< HEAD
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+=======
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+>>>>>>> ccc4d7516d30dbc722c47b0009da75801b41781a
     "@vitejs/plugin-basic-ssl": "^2.1.4",
     "@vitest/eslint-plugin": "^1.6.9",
+<<<<<<< HEAD
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.1",
+=======
+>>>>>>> ccc4d7516d30dbc722c47b0009da75801b41781a
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-oxlint": "~1.50.0",
