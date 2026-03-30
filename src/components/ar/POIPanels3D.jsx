@@ -32,8 +32,8 @@ function ScreenCloseButton({ onClose }) {
 
 const PANEL_DEFS = [
   { id: 'overview', label: null, angleOffset: -0.65 },   // ~-31 degrees left
-  { id: 'gallery',  label: 'Media',    angleOffset: 0 },  // center
-  { id: 'details',  label: 'Details',  angleOffset: 0.65 }, // ~31 degrees right
+  { id: 'details',  label: 'Details',  angleOffset: 0 },   // center
+  { id: 'gallery',  label: 'Media',    angleOffset: 0.65 }, // ~31 degrees right
 ]
 
 const PANEL_DISTANCE = 4  // meters in front of user
@@ -122,7 +122,7 @@ const styles = {
   panel: {
     width: '260px',
     height: '360px',
-    background: 'rgba(35, 15, 5, 0.85)',
+    background: 'rgba(30, 12, 4, 0.45)',
     backdropFilter: 'blur(20px)',
     borderRadius: '20px',
     border: '1px solid rgba(255,255,255,0.12)',

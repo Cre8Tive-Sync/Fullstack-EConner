@@ -80,15 +80,19 @@ function GalleryPanel({ poi }) {
   const count = images.length
   const [current, setCurrent] = useState(0)
   const touchStartX = useRef(null)
+  const busy = useRef(false)
 
-  const next = () => setCurrent(i => (i + 1) % count)
-  const prev = () => setCurrent(i => (i - 1 + count) % count)
-  const nextIdx = (current + 1) % count
+  const navigate = (dir) => {
+    if (busy.current || count < 2) return
+    busy.current = true
+    setCurrent(i => (i + dir + count) % count)
+    setTimeout(() => { busy.current = false }, 400)
+  }
 
   const handleWheel = (e) => {
     e.stopPropagation()
-    if (e.deltaX > 10 || e.deltaY > 10) next()
-    else if (e.deltaX < -10 || e.deltaY < -10) prev()
+    if (e.deltaX > 15 || e.deltaY > 15) navigate(1)
+    else if (e.deltaX < -15 || e.deltaY < -15) navigate(-1)
   }
 
   const handleTouchStart = (e) => {
@@ -98,8 +102,8 @@ function GalleryPanel({ poi }) {
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return
     const diff = touchStartX.current - e.changedTouches[0].clientX
-    if (diff > 30) next()
-    else if (diff < -30) prev()
+    if (diff > 30) navigate(1)
+    else if (diff < -30) navigate(-1)
     touchStartX.current = null
   }
 
@@ -114,30 +118,31 @@ function GalleryPanel({ poi }) {
         <InstagramIcon />
       </div>
 
-      {/* Carousel */}
+      {/* Carousel viewport */}
       {count > 0 && (
         <div
-          style={panel.carousel}
+          style={panel.carouselViewport}
           onWheel={handleWheel}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <img
-            key={current}
-            src={images[current]}
-            alt=""
-            style={panel.carouselMain}
-            draggable={false}
-          />
-          {count > 1 && (
-            <img
-              key={nextIdx + '-peek'}
-              src={images[nextIdx]}
-              alt=""
-              style={panel.carouselPeek}
-              draggable={false}
-            />
-          )}
+          {/* Sliding track */}
+          <div
+            style={{
+              ...panel.carouselTrack,
+              transform: `translateX(-${current * 100}%)`,
+            }}
+          >
+            {images.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                style={panel.carouselImg}
+                draggable={false}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -269,30 +274,24 @@ const panel = {
     alignItems: 'center',
     marginBottom: '14px',
   },
-  carousel: {
+  carouselViewport: {
     flex: 1,
-    display: 'flex',
-    gap: '8px',
     overflow: 'hidden',
-    alignItems: 'flex-start',
+    borderRadius: '14px',
     touchAction: 'pan-x',
     cursor: 'grab',
   },
-  carouselMain: {
-    width: '68%',
+  carouselTrack: {
+    display: 'flex',
+    transition: 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    willChange: 'transform',
+  },
+  carouselImg: {
+    width: '100%',
     height: '210px',
     objectFit: 'cover',
     borderRadius: '14px',
     flexShrink: 0,
-  },
-  carouselPeek: {
-    width: '30%',
-    height: '185px',
-    objectFit: 'cover',
-    borderRadius: '14px',
-    flexShrink: 0,
-    alignSelf: 'flex-end',
-    opacity: 0.85,
   },
   detailRow: {
     display: 'flex',
