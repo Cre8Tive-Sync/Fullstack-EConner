@@ -535,6 +535,18 @@ function useTestPOI(coords) {
 
 export default function ARScene() {
   const [permitted, setPermitted] = useState(false)
+  const [parallax, setParallax] = useState({ x: 50, y: 50 })
+
+  useEffect(() => {
+    const handleOrientation = (e) => {
+      // gamma: left/right tilt (-90 to 90), beta: front/back tilt (-180 to 180)
+      const x = 50 + (e.gamma ?? 0) * 0.3
+      const y = 50 + ((e.beta ?? 90) - 90) * 0.3
+      setParallax({ x: Math.min(80, Math.max(20, x)), y: Math.min(80, Math.max(20, y)) })
+    }
+    window.addEventListener('deviceorientation', handleOrientation)
+    return () => window.removeEventListener('deviceorientation', handleOrientation)
+  }, [])
 
   const requestPermissions = async () => {
     // 1. Device orientation (iOS 13+)
@@ -569,15 +581,20 @@ export default function ARScene() {
 
   if (!permitted) {
     return (
-      <div style={styles.permissionGate}>
+      <div style={{ ...styles.permissionGate, backgroundPosition: `${parallax.x}% ${parallax.y}%` }}>
+        <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
         <div style={styles.permissionCard}>
-          <h1 style={styles.permissionTitle}>Cre8Tive Sync AR</h1>
+          <div style={{ ...styles.permissionIcons, animation: 'pulse 2s ease-in-out infinite' }}>
+            <img src="/Camera.svg" alt="Camera" style={styles.permissionIcon} />
+            <img src="/AR.svg" alt="AR" style={styles.permissionIcon} />
+          </div>
           <p style={styles.permissionDesc}>
-            This app uses your camera, GPS, and motion sensors to show
-            points of interest in augmented reality.
+            Camera Access is required for Augmented Reality Functionality
+            <br /><br />
+            Please allow permissions when prompted.
           </p>
           <button style={styles.permissionBtn} onClick={requestPermissions}>
-            Start AR Experience
+            Proceed
           </button>
         </div>
       </div>
@@ -943,13 +960,20 @@ const styles = {
     maxWidth: '35vw',
   },
   permissionGate: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
     width: '100vw',
     height: '100vh',
-    background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%)',
+    backgroundImage: "url('/LoadingScreen Bg.png')",
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '2rem',
+    zIndex: 9998,
   },
   permissionCard: {
     textAlign: 'center',
@@ -964,22 +988,35 @@ const styles = {
   },
   permissionDesc: {
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.85rem',
-    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: '0.9rem',
+    color: 'rgba(255, 255, 255, 0.85)',
     lineHeight: 1.6,
     marginBottom: '2rem',
+    padding: '0 2rem',
   },
   permissionBtn: {
     padding: '14px 36px',
     borderRadius: '999px',
-    border: 'none',
-    background: '#00ffcc',
-    color: '#0a0a1a',
+    background: '#0000001e',
+    color: '#ffffff',
     fontFamily: "'DM Sans', sans-serif",
     fontSize: '1rem',
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: '0.02em',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+  },
+  permissionIcons: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '1.5rem',
+    marginBottom: '1.5rem',
+  },
+  permissionIcon: {
+    width: '35px',
+    height: '35px',
   },
   shutter: {
     position: 'fixed',
