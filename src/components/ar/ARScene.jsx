@@ -997,14 +997,14 @@ const styles = {
   permissionBtn: {
     padding: '14px 36px',
     borderRadius: '999px',
-    border: 'none',
-    background: '#00ffcc',
-    color: '#0a0a1a',
+    background: '#0000001e',
+    color: '#ffffff',
     fontFamily: "'DM Sans', sans-serif",
     fontSize: '1rem',
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: '0.02em',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
   },
   permissionIcons: {
     display: 'flex',
