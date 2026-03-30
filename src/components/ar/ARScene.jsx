@@ -582,8 +582,9 @@ export default function ARScene() {
   if (!permitted) {
     return (
       <div style={{ ...styles.permissionGate, backgroundPosition: `${parallax.x}% ${parallax.y}%` }}>
+        <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
         <div style={styles.permissionCard}>
-          <div style={styles.permissionIcons}>
+          <div style={{ ...styles.permissionIcons, animation: 'pulse 2s ease-in-out infinite' }}>
             <img src="/Camera.svg" alt="Camera" style={styles.permissionIcon} />
             <img src="/AR.svg" alt="AR" style={styles.permissionIcon} />
           </div>
