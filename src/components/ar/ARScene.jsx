@@ -571,13 +571,14 @@ export default function ARScene() {
     return (
       <div style={styles.permissionGate}>
         <div style={styles.permissionCard}>
-          <h1 style={styles.permissionTitle}>Cre8Tive Sync AR</h1>
+          <img src="LoadingScreen Icons.svg" alt="BETA TAG" style={styles.permissionTitle}></img>
           <p style={styles.permissionDesc}>
-            This app uses your camera, GPS, and motion sensors to show
-            points of interest in augmented reality.
+            Camera Access is required for Augmented Reality Functionality
+            <br /><br />
+            Please allow permissions when prompted.
           </p>
           <button style={styles.permissionBtn} onClick={requestPermissions}>
-            Start AR Experience
+            Proceed
           </button>
         </div>
       </div>
