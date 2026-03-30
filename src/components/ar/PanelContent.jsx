@@ -126,11 +126,11 @@ function GalleryPanel({ poi }) {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Sliding track */}
+          {/* Sliding track — each card is 185px, gap 8px, so next card peeks ~43px */}
           <div
             style={{
               ...panel.carouselTrack,
-              transform: `translateX(-${current * 100}%)`,
+              transform: `translateX(${-current * 193}px)`,
             }}
           >
             {images.map((src, i) => (
@@ -283,11 +283,12 @@ const panel = {
   },
   carouselTrack: {
     display: 'flex',
+    gap: '8px',
     transition: 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
     willChange: 'transform',
   },
   carouselImg: {
-    width: '100%',
+    width: '185px',
     height: '210px',
     objectFit: 'cover',
     borderRadius: '14px',
