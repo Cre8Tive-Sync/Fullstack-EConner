@@ -571,7 +571,10 @@ export default function ARScene() {
     return (
       <div style={styles.permissionGate}>
         <div style={styles.permissionCard}>
-          <img src="LoadingScreen Icons.svg" alt="BETA TAG" style={styles.permissionTitle}></img>
+          <div style={styles.permissionIcons}>
+            <img src="/Camera.svg" alt="Camera" style={styles.permissionIcon} />
+            <img src="/AR.svg" alt="AR" style={styles.permissionIcon} />
+          </div>
           <p style={styles.permissionDesc}>
             Camera Access is required for Augmented Reality Functionality
             <br /><br />
@@ -957,7 +960,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '2rem',
-    zIndex: 9999,
+    zIndex: 9998,
   },
   permissionCard: {
     textAlign: 'center',
@@ -972,7 +975,7 @@ const styles = {
   },
   permissionDesc: {
     fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.85rem',
+    fontSize: '0.9rem',
     color: 'rgba(255, 255, 255, 0.6)',
     lineHeight: 1.6,
     marginBottom: '2rem',
@@ -988,6 +991,18 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: '0.02em',
+  },
+  permissionIcons: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '1.5rem',
+    marginBottom: '1.5rem',
+  },
+  permissionIcon: {
+    width: '35px',
+    height: '35px',
   },
   shutter: {
     position: 'fixed',
