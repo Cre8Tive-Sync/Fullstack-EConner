@@ -152,50 +152,22 @@ function GalleryPanel({ poi }) {
 // ─── Details Panel ───────────────────────────────────────────────────
 
 function DetailsPanel({ poi }) {
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`
-
   return (
-    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
-      <h2 style={panel.title}>Details</h2>
+    <div style={{ ...panel.wrap, padding: '14px', overflowY: 'auto' }}>
+      {/* POI name */}
+      <h1 style={panel.locationTitle}>{poi.name}</h1>
 
-      {/* Hours */}
-      {poi.hours && (
-        <div style={panel.detailRow}>
-          <span style={panel.detailLabel}>Hours</span>
-          <span style={panel.detailValue}>{poi.hours}</span>
+      {/* Category badges */}
+      {poi.relatedActivities?.length > 0 && (
+        <div style={panel.badgeRow}>
+          {poi.relatedActivities.map((act) => (
+            <span key={act} style={panel.badge}>{act}</span>
+          ))}
         </div>
       )}
 
-      {/* Coordinates */}
-      <div style={panel.detailRow}>
-        <span style={panel.detailLabel}>Location</span>
-        <span style={panel.detailValue}>{poi.lat.toFixed(4)}, {poi.lng.toFixed(4)}</span>
-      </div>
-
-      {/* Category */}
-      <div style={panel.detailRow}>
-        <span style={panel.detailLabel}>Category</span>
-        <span style={panel.detailValue}>{poi.category}</span>
-      </div>
-
-      {/* Tips */}
-      {poi.tips && (
-        <div style={{ marginTop: '12px' }}>
-          <span style={panel.detailLabel}>Tips</span>
-          <p style={{ ...panel.description, marginTop: '4px' }}>{poi.tips}</p>
-        </div>
-      )}
-
-      {/* Directions button */}
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={panel.directionsBtn}
-        onClick={(e) => e.stopPropagation()}
-      >
-        Get Directions
-      </a>
+      {/* Description */}
+      <p style={panel.locationDesc}>{poi.description}</p>
     </div>
   )
 }
@@ -316,19 +288,34 @@ const panel = {
     color: '#fff',
     textAlign: 'right',
   },
-  directionsBtn: {
-    display: 'block',
-    marginTop: '16px',
-    padding: '10px',
-    background: 'rgba(0, 255, 204, 0.15)',
-    border: '1px solid rgba(0, 255, 204, 0.3)',
-    borderRadius: '10px',
-    color: '#00ffcc',
+  locationTitle: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '1.4rem',
+    fontWeight: 800,
+    color: '#fff',
+    margin: '0 0 10px',
+    lineHeight: 1.15,
+  },
+  badgeRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginBottom: '14px',
+  },
+  badge: {
+    padding: '5px 14px',
+    border: '1.5px solid rgba(255,255,255,0.65)',
+    borderRadius: '999px',
     fontFamily: "'DM Sans', sans-serif",
     fontSize: '0.75rem',
-    fontWeight: 700,
-    textAlign: 'center',
-    textDecoration: 'none',
-    letterSpacing: '0.04em',
+    fontWeight: 500,
+    color: '#fff',
+  },
+  locationDesc: {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.8rem',
+    color: '#fff',
+    lineHeight: 1.65,
+    margin: 0,
   },
 }
