@@ -711,7 +711,7 @@ function ARSceneInner() {
   }, [])
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', touchAction: 'none', overscrollBehavior: 'none' }}>
       {/* Rear camera feed as background */}
       <CameraBackground vrMode={vrMode} />
 
