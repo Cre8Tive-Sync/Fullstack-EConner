@@ -535,6 +535,18 @@ function useTestPOI(coords) {
 
 export default function ARScene() {
   const [permitted, setPermitted] = useState(false)
+  const [parallax, setParallax] = useState({ x: 50, y: 50 })
+
+  useEffect(() => {
+    const handleOrientation = (e) => {
+      // gamma: left/right tilt (-90 to 90), beta: front/back tilt (-180 to 180)
+      const x = 50 + (e.gamma ?? 0) * 0.3
+      const y = 50 + ((e.beta ?? 90) - 90) * 0.3
+      setParallax({ x: Math.min(80, Math.max(20, x)), y: Math.min(80, Math.max(20, y)) })
+    }
+    window.addEventListener('deviceorientation', handleOrientation)
+    return () => window.removeEventListener('deviceorientation', handleOrientation)
+  }, [])
 
   const requestPermissions = async () => {
     // 1. Device orientation (iOS 13+)
@@ -569,7 +581,7 @@ export default function ARScene() {
 
   if (!permitted) {
     return (
-      <div style={styles.permissionGate}>
+      <div style={{ ...styles.permissionGate, backgroundPosition: `${parallax.x}% ${parallax.y}%` }}>
         <div style={styles.permissionCard}>
           <div style={styles.permissionIcons}>
             <img src="/Camera.svg" alt="Camera" style={styles.permissionIcon} />
@@ -976,9 +988,10 @@ const styles = {
   permissionDesc: {
     fontFamily: "'DM Sans', sans-serif",
     fontSize: '0.9rem',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.85)',
     lineHeight: 1.6,
     marginBottom: '2rem',
+    padding: '0 2rem',
   },
   permissionBtn: {
     padding: '14px 36px',
