@@ -73,7 +73,7 @@ function ReviewsPanel({ poi }) {
 
 export default function POIPanels3D({ poi, onClose }) {
   const { camera } = useThree()
-  const [activeLeftPanel, setActiveLeftPanel] = useState('map')
+  const [activeLeftPanel, setActiveLeftPanel] = useState(null)
 
   const panelData = useMemo(() => {
     const pos = camera.position.clone()
@@ -97,7 +97,7 @@ export default function POIPanels3D({ poi, onClose }) {
     }
 
     return [
-      makePanel(0.66, 4),   // left: controls + map/reviews
+      makePanel(0.42, 4),   // left: controls + map/reviews (closer to center)
       makePanel(0, 4),      // middle: location extended
       makePanel(-0.66, 4),  // right: media
     ]
@@ -121,14 +121,14 @@ export default function POIPanels3D({ poi, onClose }) {
           >
             <aside style={styles.leftButtons}>
               <button
-                style={{ ...styles.railButton, ...(activeLeftPanel === 'map' ? styles.railButtonActive : {}) }}
+                style={styles.railButton}
                 onClick={() => setActiveLeftPanel('map')}
               >
                 <MapIcon />
                 <span style={styles.railLabel}>Map</span>
               </button>
               <button
-                style={{ ...styles.railButton, ...(activeLeftPanel === 'reviews' ? styles.railButtonActive : {}) }}
+                style={styles.railButton}
                 onClick={() => setActiveLeftPanel('reviews')}
               >
                 <ReviewsIcon />
@@ -136,10 +136,22 @@ export default function POIPanels3D({ poi, onClose }) {
               </button>
             </aside>
 
-            <section style={styles.leftDynamicContent}>
-              {activeLeftPanel === 'map' && <MapPanel poi={poi} />}
-              {activeLeftPanel === 'reviews' && <ReviewsPanel poi={poi} />}
-            </section>
+            {/* Modal overlay */}
+            {activeLeftPanel && (
+              <div style={styles.modalOverlay}>
+                <button
+                  style={styles.modalCloseBtn}
+                  onClick={() => setActiveLeftPanel(null)}
+                  aria-label="Close modal"
+                >
+                  ✕
+                </button>
+                <section style={styles.modalContent}>
+                  {activeLeftPanel === 'map' && <MapPanel poi={poi} />}
+                  {activeLeftPanel === 'reviews' && <ReviewsPanel poi={poi} />}
+                </section>
+              </div>
+            )}
           </div>
         </Html>
       </group>
@@ -212,23 +224,18 @@ function ScreenCloseButton({ onClose }) {
 const styles = {
   leftPanelShell: {
     display: 'flex',
-    gap: '10px',
+    gap: '0',
     alignItems: 'flex-start',
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(130deg, rgba(96,43,11,0.86), rgba(48,21,8,0.92))',
-    backdropFilter: 'blur(14px)',
-    borderRadius: '16px',
-    border: '1px solid rgba(255,255,255,0.85)',
-    overflow: 'hidden',
-    boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
+    width: 'auto',
+    height: 'auto',
+    position: 'relative',
   },
   leftButtons: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
-    width: '68px',
-    padding: '12px 0 0 10px',
+    gap: '8px',
+    width: 'auto',
+    padding: '0',
   },
   railButton: {
     width: '58px',
@@ -247,7 +254,7 @@ const styles = {
     fontWeight: 500,
     cursor: 'pointer',
     boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
-    transition: 'transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease',
+    transition: 'transform 0.16s ease, box-shadow 0.16s ease',
   },
   railButtonActive: {
     borderColor: 'rgba(255,255,255,1)',
@@ -263,6 +270,40 @@ const styles = {
     height: '100%',
     background: 'rgba(0,0,0,0.14)',
     overflow: 'hidden',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(130deg, rgba(96,43,11,0.95), rgba(48,21,8,0.98))',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '16px',
+    border: '1px solid rgba(255,255,255,0.85)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
+  },
+  modalCloseBtn: {
+    alignSelf: 'flex-end',
+    width: '32px',
+    height: '32px',
+    margin: '8px 8px 0 0',
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.15)',
+    border: '1px solid rgba(255,255,255,0.4)',
+    color: '#fff',
+    fontSize: '1.2rem',
+    lineHeight: 1,
+    cursor: 'pointer',
+    display: 'grid',
+    placeItems: 'center',
+    backdropFilter: 'blur(8px)',
+    transition: 'background 0.15s ease',
+  },
+  modalContent: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '4px 8px 8px',
   },
   middlePanel: {
     width: '100%',
