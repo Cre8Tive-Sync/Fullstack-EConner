@@ -97,7 +97,7 @@ export default function POIPanels3D({ poi, onClose }) {
     }
 
     return [
-      makePanel(0.42, 4),   // left: controls + map/reviews (closer to center)
+      makePanel(0.52, 4),   // left: controls + map/reviews (close to center, still visible)
       makePanel(0, 4),      // middle: location extended
       makePanel(-0.66, 4),  // right: media
     ]
@@ -112,7 +112,7 @@ export default function POIPanels3D({ poi, onClose }) {
           occlude={false}
           distanceFactor={4}
           rotation={[0, panelData[0].faceAngle, 0]}
-          style={{ width: '260px', height: '360px', pointerEvents: 'auto' }}
+          style={{ width: '260px', height: '360px', pointerEvents: 'auto', position: 'relative', zIndex: 30 }}
         >
           <div
             style={styles.leftPanelShell}
@@ -163,7 +163,7 @@ export default function POIPanels3D({ poi, onClose }) {
           occlude={false}
           distanceFactor={4}
           rotation={[0, panelData[1].faceAngle, 0]}
-          style={{ width: '260px', height: '360px', pointerEvents: 'auto' }}
+          style={{ width: '260px', height: '360px', pointerEvents: 'auto', zIndex: 20 }}
         >
           <div
             style={styles.middlePanel}
@@ -183,7 +183,7 @@ export default function POIPanels3D({ poi, onClose }) {
           occlude={false}
           distanceFactor={4}
           rotation={[0, panelData[2].faceAngle, 0]}
-          style={{ width: '278px', height: '360px', pointerEvents: 'auto' }}
+          style={{ width: '278px', height: '360px', pointerEvents: 'auto', zIndex: 10 }}
         >
           <div
             style={styles.mediaPanel}
@@ -226,9 +226,11 @@ const styles = {
     display: 'flex',
     gap: '0',
     alignItems: 'flex-start',
-    width: 'auto',
-    height: 'auto',
+    justifyContent: 'flex-end',
+    width: '260px',
+    height: '360px',
     position: 'relative',
+    padding: '12px 10px 0 0',
   },
   leftButtons: {
     display: 'flex',
@@ -236,6 +238,7 @@ const styles = {
     gap: '8px',
     width: 'auto',
     padding: '0',
+    zIndex: 2,
   },
   railButton: {
     width: '58px',
@@ -274,6 +277,11 @@ const styles = {
   modalOverlay: {
     position: 'absolute',
     inset: 0,
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+    zIndex: 10,
     background: 'linear-gradient(130deg, rgba(96,43,11,0.95), rgba(48,21,8,0.98))',
     backdropFilter: 'blur(12px)',
     borderRadius: '16px',
