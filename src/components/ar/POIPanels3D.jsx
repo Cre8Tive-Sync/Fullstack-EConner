@@ -73,9 +73,9 @@ function ReviewsPanel({ poi }) {
 
 export default function POIPanels3D({ poi, onClose }) {
   const { camera } = useThree()
-  const [activeLeftPanel, setActiveLeftPanel] = useState('overview')
+  const [activeLeftPanel, setActiveLeftPanel] = useState('map')
 
-  const { mainPanel, mediaPanel } = useMemo(() => {
+  const panelData = useMemo(() => {
     const pos = camera.position.clone()
     const forward = new THREE.Vector3(0, 0, -1)
     forward.applyQuaternion(camera.quaternion)
@@ -84,7 +84,7 @@ export default function POIPanels3D({ poi, onClose }) {
 
     const baseAngle = Math.atan2(forward.x, forward.z)
 
-    const makePanel = (angleOffset, distance, yOffset) => {
+    const makePanel = (angleOffset, distance, yOffset = 0.5) => {
       const angle = baseAngle + angleOffset
       const x = pos.x + Math.sin(angle) * distance
       const z = pos.z + Math.cos(angle) * distance
@@ -96,29 +96,30 @@ export default function POIPanels3D({ poi, onClose }) {
       return { position, faceAngle }
     }
 
-    return {
-      mainPanel: makePanel(0.18, 3.5, 0.45),
-      mediaPanel: makePanel(-0.36, 3.8, 0.4),
-    }
+    return [
+      makePanel(0.66, 4),   // left: controls + map/reviews
+      makePanel(0, 4),      // middle: location extended
+      makePanel(-0.66, 4),  // right: media
+    ]
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <group>
-      <group position={mainPanel.position}>
+      <group position={panelData[0].position}>
         <Html
           center
           transform
           occlude={false}
           distanceFactor={4}
-          rotation={[0, mainPanel.faceAngle, 0]}
-          style={{ width: '368px', height: '360px', pointerEvents: 'auto' }}
+          rotation={[0, panelData[0].faceAngle, 0]}
+          style={{ width: '260px', height: '360px', pointerEvents: 'auto' }}
         >
           <div
-            style={styles.mainShell}
+            style={styles.leftPanelShell}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <aside style={styles.leftRail}>
+            <aside style={styles.leftButtons}>
               <button
                 style={{ ...styles.railButton, ...(activeLeftPanel === 'map' ? styles.railButtonActive : {}) }}
                 onClick={() => setActiveLeftPanel('map')}
@@ -135,8 +136,7 @@ export default function POIPanels3D({ poi, onClose }) {
               </button>
             </aside>
 
-            <section style={styles.mainPanel}>
-              {activeLeftPanel === 'overview' && <PanelContent type="overview" poi={poi} />}
+            <section style={styles.leftDynamicContent}>
               {activeLeftPanel === 'map' && <MapPanel poi={poi} />}
               {activeLeftPanel === 'reviews' && <ReviewsPanel poi={poi} />}
             </section>
@@ -144,13 +144,33 @@ export default function POIPanels3D({ poi, onClose }) {
         </Html>
       </group>
 
-      <group position={mediaPanel.position}>
+      <group position={panelData[1].position}>
         <Html
           center
           transform
           occlude={false}
           distanceFactor={4}
-          rotation={[0, mediaPanel.faceAngle, 0]}
+          rotation={[0, panelData[1].faceAngle, 0]}
+          style={{ width: '260px', height: '360px', pointerEvents: 'auto' }}
+        >
+          <div
+            style={styles.middlePanel}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div style={styles.middleTab}>{poi.name}</div>
+            <PanelContent type="overview" poi={poi} />
+          </div>
+        </Html>
+      </group>
+
+      <group position={panelData[2].position}>
+        <Html
+          center
+          transform
+          occlude={false}
+          distanceFactor={4}
+          rotation={[0, panelData[2].faceAngle, 0]}
           style={{ width: '278px', height: '360px', pointerEvents: 'auto' }}
         >
           <div
@@ -190,9 +210,9 @@ function ScreenCloseButton({ onClose }) {
 }
 
 const styles = {
-  mainShell: {
+  leftPanelShell: {
     display: 'flex',
-    gap: '8px',
+    gap: '10px',
     alignItems: 'flex-start',
     width: '100%',
     height: '100%',
@@ -203,16 +223,16 @@ const styles = {
     overflow: 'hidden',
     boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
   },
-  leftRail: {
+  leftButtons: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '7px',
-    width: '76px',
-    padding: '10px 0 0 10px',
+    gap: '10px',
+    width: '68px',
+    padding: '12px 0 0 10px',
   },
   railButton: {
-    width: '64px',
-    minHeight: '74px',
+    width: '58px',
+    minHeight: '72px',
     borderRadius: '14px',
     background: 'linear-gradient(160deg, rgba(84,42,11,0.8), rgba(49,24,9,0.86))',
     border: '2px solid rgba(255,255,255,0.9)',
@@ -238,11 +258,31 @@ const styles = {
     lineHeight: 1,
     marginTop: '1px',
   },
-  mainPanel: {
+  leftDynamicContent: {
     flex: 1,
     height: '100%',
     background: 'rgba(0,0,0,0.14)',
     overflow: 'hidden',
+  },
+  middlePanel: {
+    width: '100%',
+    height: '100%',
+    background: 'linear-gradient(130deg, rgba(96,43,11,0.86), rgba(48,21,8,0.92))',
+    backdropFilter: 'blur(14px)',
+    borderRadius: '16px',
+    border: '1px solid rgba(255,255,255,0.85)',
+    overflow: 'hidden',
+    boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
+  },
+  middleTab: {
+    padding: '12px 16px 8px',
+    fontSize: '0.7rem',
+    fontFamily: "'DM Sans', sans-serif",
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.45)',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
   },
   mediaPanel: {
     width: '100%',
@@ -294,7 +334,7 @@ const styles = {
   },
   mapDirections: {
     display: 'block',
-    margin: '8px 10px 10px',
+    margin: '8px 8px 8px',
     padding: '8px 10px',
     textAlign: 'center',
     textDecoration: 'none',
@@ -311,7 +351,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     color: '#fff',
-    padding: '12px',
+    padding: '10px',
     overflow: 'hidden',
   },
   reviewsTitle: {
