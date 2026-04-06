@@ -97,7 +97,7 @@ export default function POIPanels3D({ poi, onClose }) {
     }
 
     return [
-      makePanel(0.52, 4),   // left: controls + map/reviews (close to center, still visible)
+      makePanel(0.66, 4),   // left: controls + map/reviews (close to center, still visible)
       makePanel(0, 4),      // middle: location extended
       makePanel(-0.66, 4),  // right: media
     ]
@@ -135,26 +135,41 @@ export default function POIPanels3D({ poi, onClose }) {
                 <span style={styles.railLabel}>Reviews</span>
               </button>
             </aside>
-
-            {/* Modal overlay */}
-            {activeLeftPanel && (
-              <div style={styles.modalOverlay}>
-                <button
-                  style={styles.modalCloseBtn}
-                  onClick={() => setActiveLeftPanel(null)}
-                  aria-label="Close modal"
-                >
-                  ✕
-                </button>
-                <section style={styles.modalContent}>
-                  {activeLeftPanel === 'map' && <MapPanel poi={poi} />}
-                  {activeLeftPanel === 'reviews' && <ReviewsPanel poi={poi} />}
-                </section>
-              </div>
-            )}
           </div>
         </Html>
       </group>
+
+      {/* Map / Reviews — rendered as a full-size panel, same dimensions as middle/right */}
+      {activeLeftPanel && (
+        <group position={panelData[0].position}>
+          <Html
+            center
+            transform
+            occlude={false}
+            distanceFactor={4}
+            rotation={[0, panelData[0].faceAngle, 0]}
+            style={{ width: '260px', height: '360px', pointerEvents: 'auto', zIndex: 40 }}
+          >
+            <div
+              style={styles.modalPanel}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <button
+                style={styles.modalCloseBtn}
+                onClick={() => setActiveLeftPanel(null)}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+              <section style={styles.modalContent}>
+                {activeLeftPanel === 'map' && <MapPanel poi={poi} />}
+                {activeLeftPanel === 'reviews' && <ReviewsPanel poi={poi} />}
+              </section>
+            </div>
+          </Html>
+        </group>
+      )}
 
       <group position={panelData[1].position}>
         <Html
@@ -312,6 +327,18 @@ const styles = {
     flex: 1,
     overflow: 'auto',
     padding: '4px 8px 8px',
+  },
+  modalPanel: {
+    width: '100%',
+    height: '100%',
+    background: 'linear-gradient(130deg, rgba(96,43,11,0.86), rgba(48,21,8,0.92))',
+    backdropFilter: 'blur(14px)',
+    borderRadius: '16px',
+    border: '1px solid rgba(255,255,255,0.85)',
+    overflow: 'hidden',
+    boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
+    display: 'flex',
+    flexDirection: 'column',
   },
   middlePanel: {
     width: '100%',
