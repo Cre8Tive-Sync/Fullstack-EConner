@@ -636,6 +636,8 @@ function ARSceneInner() {
   const [vrMode, setVrMode] = useState(false)
   const debugSphereRef = useRef()
 
+  const showDebug = new URLSearchParams(window.location.search).get('debug') === 'true'
+
   const { isLandscape } = useOrientationDetect()
   const { coords } = useGeolocation()
   const testPoi = useTestPOI(coords)
@@ -725,7 +727,7 @@ function ARSceneInner() {
 
       {/* Hide DOM overlays in VR mode — they can't split per eye */}
       {!vrMode && <Compass />}
-      {!vrMode && closestPOI && <ProximityIndicator poi={closestPOI} />}
+      {!vrMode && showDebug && closestPOI && <ProximityIndicator poi={closestPOI} />}
 
       {!vrMode && arFailed && (
         <div style={styles.fallbackBanner}>
@@ -733,8 +735,8 @@ function ARSceneInner() {
         </div>
       )}
 
-      {/* Debug overlay — hide in VR */}
-      {!vrMode && (
+      {/* Debug overlay — hide in VR and when not in debug mode */}
+      {!vrMode && showDebug && (
         <div style={styles.debug}>
           <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'} {vrMode ? '+ VR' : ''}</div>
           <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
@@ -747,8 +749,8 @@ function ARSceneInner() {
         </div>
       )}
 
-      {/* HOW TO TEST — hide in VR */}
-      {!vrMode && (
+      {/* HOW TO TEST — hide in VR and when not in debug mode */}
+      {!vrMode && showDebug && (
         <div style={styles.howTo}>
           1. Aim crosshair at red sphere{'\n'}
           2. Crosshair turns green + shutter lights up{'\n'}
