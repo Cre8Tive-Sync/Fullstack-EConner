@@ -101,7 +101,7 @@ export default function POIPanels3D({ poi, onClose }) {
       makePanel(0, 4),      // middle: location extended
       makePanel(-0.66, 4),  // right: media
     ]
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <group>
