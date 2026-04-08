@@ -631,6 +631,23 @@ function ARSceneInner() {
   const [vrMode, setVrMode] = useState(false)
   const debugSphereRef = useRef()
 
+  // Prevent the page from scrolling/dragging while AR is active
+  useEffect(() => {
+    const prev = {
+      bodyOverflow: document.body.style.overflow,
+      bodyTouchAction: document.body.style.touchAction,
+      htmlOverflow: document.documentElement.style.overflow,
+    }
+    document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev.bodyOverflow
+      document.body.style.touchAction = prev.bodyTouchAction
+      document.documentElement.style.overflow = prev.htmlOverflow
+    }
+  }, [])
+
   const { pois: firebasePois } = usePOIsFromFirestore()
 
   const showDebug = new URLSearchParams(window.location.search).get('debug') === 'true'
