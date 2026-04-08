@@ -1,3 +1,111 @@
+// ─── 5 Category Spheres (temporary / Firebase fallback) ─────────────
+// One sphere per category. Firebase will hydrate these with real data.
+export const CATEGORY_POIS = [
+  {
+    id: 'cat-farm-001',
+    name: 'Marag Valley Farms',
+    description:
+      'Lush agricultural lands along the Marag Valley, known for root crops, rice, and organic produce grown by local farming communities.',
+    lat: 18.3620,
+    lng: 121.6180,
+    category: 'farm',
+    images: [
+      'https://picsum.photos/seed/farm1/400/300',
+      'https://picsum.photos/seed/farm2/400/300',
+      'https://picsum.photos/seed/farm3/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#44cc66',
+    sphereEmissive: '#228833',
+    proximityRadius: 50,
+    hours: 'Open daily',
+    tips: 'Best visited in the morning when farmers are active. Bring cash for fresh produce.',
+    relatedActivities: ['Agritourism', 'Farm Tour', 'Organic Produce'],
+  },
+  {
+    id: 'cat-resto-001',
+    name: 'Kusina ni Manang',
+    description:
+      'A beloved local eatery serving authentic Ilocano and Cordilleran home-cooked dishes. Known for pinakbet, pinikpikan, and freshly caught river fish.',
+    lat: 18.3540,
+    lng: 121.6330,
+    category: 'restaurant',
+    images: [
+      'https://picsum.photos/seed/kusina1/400/300',
+      'https://picsum.photos/seed/kusina2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#ff8844',
+    sphereEmissive: '#aa4411',
+    proximityRadius: 30,
+    hours: '6:00 AM – 8:00 PM',
+    tips: 'Try the pinikpikan — a traditional Cordilleran chicken soup. Cash only.',
+    relatedActivities: ['Local Cuisine', 'Cultural Experience'],
+  },
+  {
+    id: 'cat-tourist-001',
+    name: 'Dupag Rock Formation',
+    description:
+      'Stunning natural rock pillars rising along the Apayao River. A geological wonder shaped by centuries of erosion, offering breathtaking views and photo opportunities.',
+    lat: 18.3920,
+    lng: 121.5960,
+    category: 'tourist_spot',
+    images: [
+      'https://picsum.photos/seed/dupag1/400/300',
+      'https://picsum.photos/seed/dupag2/400/300',
+      'https://picsum.photos/seed/dupag3/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#4488ff',
+    sphereEmissive: '#1133aa',
+    proximityRadius: 50,
+    hours: 'Open 24 hours',
+    tips: 'Best visited during dry season (Nov–May). Bring waterproof footwear.',
+    relatedActivities: ['River Trekking', 'Photography', 'Nature Walk'],
+  },
+  {
+    id: 'cat-gov-001',
+    name: 'Apayao Provincial Capitol',
+    description:
+      'The seat of provincial government and a central landmark in Luna, Apayao. The surrounding plaza hosts cultural events and festivals throughout the year.',
+    lat: 18.3530,
+    lng: 121.6340,
+    category: 'government',
+    images: [
+      'https://picsum.photos/seed/capitol1/400/300',
+      'https://picsum.photos/seed/capitol2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#cc66ff',
+    sphereEmissive: '#6633aa',
+    proximityRadius: 40,
+    hours: '8:00 AM – 5:00 PM (Mon–Fri)',
+    tips: 'Visit during the Say-am Festival (March) for traditional dances and cultural showcases.',
+    relatedActivities: ['Cultural Immersion', 'Photography', 'Heritage Tour'],
+  },
+  {
+    id: 'cat-pasa-001',
+    name: 'Luna Pasalubong Center',
+    description:
+      'Your one-stop shop for local delicacies, handicrafts, woven products, and native souvenirs from the Apayao region.',
+    lat: 18.3550,
+    lng: 121.6310,
+    category: 'pasalubong',
+    images: [
+      'https://picsum.photos/seed/pasa1/400/300',
+      'https://picsum.photos/seed/pasa2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#ffcc44',
+    sphereEmissive: '#aa8811',
+    proximityRadius: 30,
+    hours: '8:00 AM – 6:00 PM',
+    tips: 'Look for locally woven rattan baskets and native rice cakes (bibingka, puto).',
+    relatedActivities: ['Shopping', 'Souvenir Hunting', 'Local Products'],
+  },
+]
+
+// ─── Legacy detailed POIs (kept for reference) ───────────────────────
 export const POIS = [
   {
     id: 'poi-001',

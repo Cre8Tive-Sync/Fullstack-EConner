@@ -12,7 +12,8 @@ import { useGeolocation } from './hooks/useGeolocation'
 import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
 import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
 import { useOrientationDetect } from './hooks/useOrientationDetect'
-import { POIS } from './data/pois'
+import { usePOIsFromFirestore } from './hooks/usePOIsFromFirestore'
+import ARNavigationArrow from './ARNavigationArrow'
 
 const MAX_MARKER_DISTANCE = 200
 
@@ -631,10 +632,13 @@ function ARUpdater() {
 function ARSceneInner() {
   const [targetedPoiId, setTargetedPoiId] = useState(null)
   const [activePoi, setActivePoi] = useState(null)
+  const [navigatingTo, setNavigatingTo] = useState(null)
   const [arFailed, setArFailed] = useState(false)
   const [debugPlaced, setDebugPlaced] = useState(false)
   const [vrMode, setVrMode] = useState(false)
   const debugSphereRef = useRef()
+
+  const { pois: firebasePois } = usePOIsFromFirestore()
 
   const showDebug = new URLSearchParams(window.location.search).get('debug') === 'true'
 
@@ -673,10 +677,17 @@ function ARSceneInner() {
     }
   }, [vrMode])
 
-  // Merge test POI (first) with real POIs so it appears at index 0
+  // Merge test POI (first) with Firebase / static POIs
   const allPois = useMemo(() => {
-    return testPoi ? [testPoi, ...POIS] : POIS
-  }, [testPoi])
+    return testPoi ? [testPoi, ...firebasePois] : firebasePois
+  }, [testPoi, firebasePois])
+
+  const handleNavigate = useCallback((poi) => {
+    setNavigatingTo(poi)
+    setActivePoi(null)
+  }, [])
+
+  const handleStopNavigating = useCallback(() => setNavigatingTo(null), [])
 
   const { closestPOI } = useNearbyPOIs(coords, allPois)
 
@@ -811,7 +822,12 @@ function ARSceneInner() {
           <VRPanelContent poi={activePoi} onClose={handleClosePanel} />
         )}
         {activePoi && !vrMode && (
-          <POIPanels3D poi={activePoi} onClose={handleClosePanel} />
+          <POIPanels3D poi={activePoi} onClose={handleClosePanel} onNavigate={handleNavigate} />
+        )}
+
+        {/* AR compass arrow — visible whenever navigation is active */}
+        {navigatingTo && (
+          <ARNavigationArrow destination={navigatingTo} userCoords={coords} />
         )}
       </Canvas>
 
@@ -826,6 +842,13 @@ function ARSceneInner() {
 
       {!vrMode && !activePoi && (
         <ShutterButton targeted={targeted} onCapture={handleCapture} />
+      )}
+
+      {/* Stop navigation button — shown in AR mode while navigating */}
+      {!vrMode && navigatingTo && (
+        <button style={styles.stopNavBtn} onClick={handleStopNavigating}>
+          ✕ Stop Navigation
+        </button>
       )}
 
       {/* VR mode hint */}
@@ -1094,6 +1117,23 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     letterSpacing: '0.06em',
+  },
+  stopNavBtn: {
+    position: 'fixed',
+    top: '1rem',
+    right: '5rem',
+    padding: '8px 18px',
+    borderRadius: '999px',
+    background: 'rgba(255,100,0,0.18)',
+    border: '1px solid rgba(255,100,0,0.7)',
+    color: '#ff8844',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.8rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    zIndex: 20,
+    backdropFilter: 'blur(10px)',
+    letterSpacing: '0.03em',
   },
   vrHint: {
     position: 'fixed',

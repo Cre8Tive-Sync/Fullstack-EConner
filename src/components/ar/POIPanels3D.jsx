@@ -4,6 +4,20 @@ import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import PanelContent from './PanelContent'
 
+function NavigateIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 2L4.5 20.3l.1.1L12 17l7.4 3.4.1-.1L12 2z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function MapIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -71,7 +85,7 @@ function ReviewsPanel({ poi }) {
   )
 }
 
-export default function POIPanels3D({ poi, onClose }) {
+export default function POIPanels3D({ poi, onClose, onNavigate }) {
   const { camera } = useThree()
   const [activeLeftPanel, setActiveLeftPanel] = useState(null)
 
@@ -133,6 +147,13 @@ export default function POIPanels3D({ poi, onClose }) {
               >
                 <ReviewsIcon />
                 <span style={styles.railLabel}>Reviews</span>
+              </button>
+              <button
+                style={{ ...styles.railButton, borderColor: '#ff8844', color: '#ff8844' }}
+                onClick={() => onNavigate?.(poi)}
+              >
+                <NavigateIcon />
+                <span style={styles.railLabel}>Go</span>
               </button>
             </aside>
           </div>
