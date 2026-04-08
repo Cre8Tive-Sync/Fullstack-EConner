@@ -177,27 +177,50 @@ function FallbackDeviceOrientationCamera() {
   return null
 }
 
-// Fallback: first POI directly in front, rest spread in an arc behind it
+// Fallback: POIs spread in a full arc in front of the camera
 function FallbackPOIMarkers({ pois, targetedPoiId }) {
   const groupRef = useRef()
-  const radius = 5 // close enough to see clearly
+  const radius = 4
 
   return (
     <group ref={groupRef}>
       {pois.map((poi, i) => {
-        let x, z
-        if (i === 0) {
-          // First POI: dead center in front of camera
-          x = 0
-          z = -radius
-        } else {
-          // Remaining POIs: spread in an arc to left and right
-          const remaining = pois.length - 1
-          const arcSpan = Math.PI * 0.7 // ~126 degrees
-          const angle = -arcSpan / 2 + (arcSpan / Math.max(remaining - 1, 1)) * (i - 1)
-          x = Math.sin(angle) * radius
-          z = -Math.cos(angle) * radius
-        }
+        const arcSpan = Math.PI * 0.8 // ~145 degrees spread
+        const angle = pois.length > 1
+          ? -arcSpan / 2 + (arcSpan / (pois.length - 1)) * i
+          : 0
+        const x = Math.sin(angle) * radius
+        const z = -Math.cos(angle) * radius
+        return (
+          <group key={poi.id} position={[x, 0, z]}>
+            <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+// Always-visible close arc of category POIs — camera-relative, no GPS needed
+function CloseCategoryMarkers({ pois, targetedPoiId }) {
+  const { camera } = useThree()
+  const groupRef = useRef()
+  const radius = 4
+
+  useFrame(() => {
+    if (!groupRef.current) return
+    groupRef.current.position.copy(camera.position)
+  })
+
+  return (
+    <group ref={groupRef}>
+      {pois.map((poi, i) => {
+        const arcSpan = Math.PI * 0.8
+        const angle = pois.length > 1
+          ? -arcSpan / 2 + (arcSpan / (pois.length - 1)) * i
+          : 0
+        const x = Math.sin(angle) * radius
+        const z = -Math.cos(angle) * radius
         return (
           <group key={poi.id} position={[x, 0, z]}>
             <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
@@ -677,10 +700,10 @@ function ARSceneInner() {
     }
   }, [vrMode])
 
-  // Merge test POI (first) with Firebase / static POIs
+  // In debug mode, prepend the test POI; otherwise just use Firebase/static data
   const allPois = useMemo(() => {
-    return testPoi ? [testPoi, ...firebasePois] : firebasePois
-  }, [testPoi, firebasePois])
+    return showDebug && testPoi ? [testPoi, ...firebasePois] : firebasePois
+  }, [showDebug, testPoi, firebasePois])
 
   const handleNavigate = useCallback((poi) => {
     setNavigatingTo(poi)
@@ -783,9 +806,16 @@ function ARSceneInner() {
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
-        {/* DEBUG: sphere that stays in front of camera after AR.js orientation settles */}
-        <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={handleDebugPlaced} />
-        <DirectionArrow targetRef={debugSphereRef} visible={debugPlaced} />
+        {/* DEBUG only: forward sphere + direction arrow */}
+        {showDebug && (
+          <>
+            <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={handleDebugPlaced} />
+            <DirectionArrow targetRef={debugSphereRef} visible={debugPlaced} />
+          </>
+        )}
+
+        {/* Always-visible close category spheres (camera-relative, no GPS needed) */}
+        <CloseCategoryMarkers pois={firebasePois} targetedPoiId={targetedPoiId} />
 
         {!arFailed ? (
           <LocationARProvider onError={handleArError}>
