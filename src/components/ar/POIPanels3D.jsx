@@ -1,8 +1,22 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
 import PanelContent from './PanelContent'
+
+function NavigateIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 2L4.5 20.3l.1.1L12 17l7.4 3.4.1-.1L12 2z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 function MapIcon() {
   return (
@@ -44,6 +58,41 @@ function MapPanel({ poi }) {
 }
 
 function ReviewsPanel({ poi }) {
+  const listRef = useRef()
+  const touchStartY = useRef(0)
+
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+
+    const onTouchStart = (e) => {
+      touchStartY.current = e.touches[0].clientY
+      e.stopImmediatePropagation()
+    }
+
+    const onTouchMove = (e) => {
+      e.stopImmediatePropagation()
+      const dy = touchStartY.current - e.touches[0].clientY
+      touchStartY.current = e.touches[0].clientY
+      el.scrollTop += dy
+      // Only prevent default when we can actually scroll, so the browser
+      // doesn't block the gesture entirely.
+      if (
+        (dy > 0 && el.scrollTop < el.scrollHeight - el.clientHeight) ||
+        (dy < 0 && el.scrollTop > 0)
+      ) {
+        e.preventDefault()
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [])
+
   const reviews = useMemo(() => {
     const defaults = [
       { user: 'A. Reyes', rating: 5, text: `Amazing place. ${poi.tips || 'Worth the visit.'}` },
@@ -56,7 +105,10 @@ function ReviewsPanel({ poi }) {
   return (
     <div style={styles.reviewsWrap}>
       <h3 style={styles.reviewsTitle}>Reviews</h3>
-      <div style={styles.reviewsList}>
+      <div
+        ref={listRef}
+        style={styles.reviewsList}
+      >
         {reviews.map((review, idx) => (
           <article key={`${review.user}-${idx}`} style={styles.reviewItem}>
             <div style={styles.reviewHead}>
@@ -71,7 +123,7 @@ function ReviewsPanel({ poi }) {
   )
 }
 
-export default function POIPanels3D({ poi, onClose }) {
+export default function POIPanels3D({ poi, onClose, onNavigate }) {
   const { camera } = useThree()
   const [activeLeftPanel, setActiveLeftPanel] = useState(null)
 
@@ -133,6 +185,13 @@ export default function POIPanels3D({ poi, onClose }) {
               >
                 <ReviewsIcon />
                 <span style={styles.railLabel}>Reviews</span>
+              </button>
+              <button
+                style={{ ...styles.railButton, borderColor: '#ff8844', color: '#ff8844' }}
+                onClick={() => onNavigate?.(poi)}
+              >
+                <NavigateIcon />
+                <span style={styles.railLabel}>Go</span>
               </button>
             </aside>
           </div>
@@ -429,6 +488,7 @@ const styles = {
     color: '#fff',
     padding: '10px',
     overflow: 'hidden',
+    minHeight: 0,
   },
   reviewsTitle: {
     margin: '0 0 10px',
@@ -437,7 +497,10 @@ const styles = {
     fontWeight: 800,
   },
   reviewsList: {
+    flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',

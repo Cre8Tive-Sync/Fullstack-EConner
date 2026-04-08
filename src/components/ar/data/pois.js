@@ -1,4 +1,52 @@
+// ─── 5 Category Spheres ──────────────────────────────────────────────
+// Pure category descriptors — no lat/lng. Rendered as close AR spheres.
+export const CATEGORIES = [
+  {
+    id: 'cat-farm',
+    name: 'Farms',
+    category: 'farm',
+    sphereColor: '#44cc66',
+    sphereEmissive: '#228833',
+    description: 'Local farms and agritourism spots in the Apayao region.',
+  },
+  {
+    id: 'cat-restaurant',
+    name: 'Restaurants',
+    category: 'restaurant',
+    sphereColor: '#ff8844',
+    sphereEmissive: '#aa4411',
+    description: 'Local eateries, diners, and riverside dining.',
+  },
+  {
+    id: 'cat-tourist',
+    name: 'Tourist Spots',
+    category: 'tourist_spot',
+    sphereColor: '#4488ff',
+    sphereEmissive: '#1133aa',
+    description: 'Natural wonders, rock formations, caves, and falls.',
+  },
+  {
+    id: 'cat-government',
+    name: 'Government',
+    category: 'government',
+    sphereColor: '#cc66ff',
+    sphereEmissive: '#6633aa',
+    description: 'Provincial and municipal government offices.',
+  },
+  {
+    id: 'cat-pasalubong',
+    name: 'Pasalubong',
+    category: 'pasalubong',
+    sphereColor: '#ffcc44',
+    sphereEmissive: '#aa8811',
+    description: 'Local souvenirs, delicacies, and native products.',
+  },
+]
+
+// ─── Places (static fallback — Firebase hydrates these) ──────────────
+// category values must match a CATEGORIES[].category key above.
 export const POIS = [
+  // ── Tourist Spots ──
   {
     id: 'poi-001',
     name: 'Dupag Rock Formation',
@@ -6,7 +54,7 @@ export const POIS = [
       'Stunning natural rock pillars rising along the Apayao River. A geological wonder shaped by centuries of erosion, offering breathtaking views and excellent photo opportunities.',
     lat: 18.3920,
     lng: 121.5960,
-    category: 'landmark',
+    category: 'tourist_spot',
     images: [
       'https://picsum.photos/seed/dupag1/400/300',
       'https://picsum.photos/seed/dupag2/400/300',
@@ -17,7 +65,7 @@ export const POIS = [
     sphereEmissive: '#1133aa',
     proximityRadius: 50,
     hours: 'Open 24 hours',
-    tips: 'Best visited during dry season (November–May). Bring waterproof footwear for the riverbank trail.',
+    tips: 'Best visited during dry season (Nov–May). Bring waterproof footwear for the riverbank trail.',
     relatedActivities: ['River Trekking', 'Photography', 'Nature Walk'],
   },
   {
@@ -27,7 +75,7 @@ export const POIS = [
       'An underground river cave system with crystal-clear waters flowing through ancient limestone chambers. Guided tours available for spelunking and swimming.',
     lat: 18.3680,
     lng: 121.6200,
-    category: 'nature',
+    category: 'tourist_spot',
     images: [
       'https://picsum.photos/seed/lamlamig1/400/300',
       'https://picsum.photos/seed/lamlamig2/400/300',
@@ -37,17 +85,17 @@ export const POIS = [
     sphereEmissive: '#006655',
     proximityRadius: 50,
     hours: '7:00 AM – 4:00 PM',
-    tips: 'Guided tours required. Bring a waterproof bag for electronics. Water temperature is cool year-round.',
+    tips: 'Guided tours required. Bring a waterproof bag for electronics.',
     relatedActivities: ['Cave Exploration', 'Swimming', 'Spelunking'],
   },
   {
     id: 'poi-003',
     name: 'Marag Waterfalls',
     description:
-      'Multi-tiered cascading falls surrounded by lush tropical forest. A popular destination for trekking and nature photography in the heart of the Cordillera highlands.',
+      'Multi-tiered cascading falls surrounded by lush tropical forest. A popular destination for trekking and nature photography in the Cordillera highlands.',
     lat: 18.3450,
     lng: 121.6500,
-    category: 'nature',
+    category: 'tourist_spot',
     images: [
       'https://picsum.photos/seed/marag1/400/300',
       'https://picsum.photos/seed/marag2/400/300',
@@ -61,11 +109,12 @@ export const POIS = [
     tips: 'The trek takes about 45 minutes. Wear sturdy shoes and bring insect repellent.',
     relatedActivities: ['Trekking', 'Photography', 'Swimming'],
   },
+  // ── Restaurants ──
   {
     id: 'poi-004',
     name: 'Kusina ni Manang',
     description:
-      'A beloved local eatery serving authentic Ilocano and Cordilleran home-cooked dishes. Known for their pinakbet, pinikpikan, and freshly caught river fish.',
+      'A beloved local eatery serving authentic Ilocano and Cordilleran home-cooked dishes. Known for pinakbet, pinikpikan, and freshly caught river fish.',
     lat: 18.3540,
     lng: 121.6330,
     category: 'restaurant',
@@ -82,30 +131,10 @@ export const POIS = [
     relatedActivities: ['Local Cuisine', 'Cultural Experience'],
   },
   {
-    id: 'poi-005',
-    name: 'Apayao Provincial Capitol',
-    description:
-      'The seat of provincial government and a central landmark in Luna, Apayao. The surrounding plaza hosts cultural events and festivals throughout the year.',
-    lat: 18.3530,
-    lng: 121.6340,
-    category: 'landmark',
-    images: [
-      'https://picsum.photos/seed/capitol1/400/300',
-      'https://picsum.photos/seed/capitol2/400/300',
-    ],
-    videoUrl: null,
-    sphereColor: '#cc66ff',
-    sphereEmissive: '#6633aa',
-    proximityRadius: 40,
-    hours: '8:00 AM – 5:00 PM (Mon–Fri)',
-    tips: 'Visit during the Say-am Festival (March) for traditional dances and cultural showcases.',
-    relatedActivities: ['Cultural Immersion', 'Photography', 'Heritage Tour'],
-  },
-  {
     id: 'poi-006',
     name: 'Apayao River Grill',
     description:
-      'Riverside dining spot offering fresh grilled fish, meats, and local delicacies. Enjoy your meal with a scenic view of the Apayao River.',
+      'Riverside dining spot offering fresh grilled fish, meats, and local delicacies with a scenic view of the Apayao River.',
     lat: 18.3560,
     lng: 121.6280,
     category: 'restaurant',
@@ -121,5 +150,129 @@ export const POIS = [
     hours: '10:00 AM – 9:00 PM',
     tips: 'Reserve ahead on weekends. The grilled tilapia is a must-try.',
     relatedActivities: ['Local Cuisine', 'Riverside Dining'],
+  },
+  // ── Government ──
+  {
+    id: 'poi-005',
+    name: 'Apayao Provincial Capitol',
+    description:
+      'The seat of provincial government and a central landmark in Luna, Apayao. The plaza hosts cultural events and festivals throughout the year.',
+    lat: 18.3530,
+    lng: 121.6340,
+    category: 'government',
+    images: [
+      'https://picsum.photos/seed/capitol1/400/300',
+      'https://picsum.photos/seed/capitol2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#cc66ff',
+    sphereEmissive: '#6633aa',
+    proximityRadius: 40,
+    hours: '8:00 AM – 5:00 PM (Mon–Fri)',
+    tips: 'Visit during the Say-am Festival (March) for traditional dances and cultural showcases.',
+    relatedActivities: ['Cultural Immersion', 'Photography', 'Heritage Tour'],
+  },
+  {
+    id: 'poi-007',
+    name: 'Luna Municipal Hall',
+    description:
+      'The main government center of the Municipality of Luna, Apayao. Home to local administrative offices serving the community.',
+    lat: 18.3525,
+    lng: 121.6338,
+    category: 'government',
+    images: [
+      'https://picsum.photos/seed/munhall1/400/300',
+      'https://picsum.photos/seed/munhall2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#bb55ee',
+    sphereEmissive: '#5522aa',
+    proximityRadius: 40,
+    hours: '8:00 AM – 5:00 PM (Mon–Fri)',
+    tips: 'Bring valid ID for government transactions.',
+    relatedActivities: ['Civic Services', 'Heritage Tour'],
+  },
+  // ── Farms ──
+  {
+    id: 'poi-008',
+    name: 'Marag Valley Organic Farm',
+    description:
+      'Lush agricultural lands along the Marag Valley, known for root crops, rice, and organic produce grown by local farming communities.',
+    lat: 18.3620,
+    lng: 121.6180,
+    category: 'farm',
+    images: [
+      'https://picsum.photos/seed/farm1/400/300',
+      'https://picsum.photos/seed/farm2/400/300',
+      'https://picsum.photos/seed/farm3/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#44cc66',
+    sphereEmissive: '#228833',
+    proximityRadius: 50,
+    hours: 'Open daily',
+    tips: 'Best visited in the morning when farmers are active. Bring cash for fresh produce.',
+    relatedActivities: ['Agritourism', 'Farm Tour', 'Organic Produce'],
+  },
+  {
+    id: 'poi-009',
+    name: 'Apayao Cacao Farm',
+    description:
+      'A thriving cacao plantation showcasing the process from pod to chocolate. Learn about sustainable farming from local cacao growers.',
+    lat: 18.3605,
+    lng: 121.6195,
+    category: 'farm',
+    images: [
+      'https://picsum.photos/seed/cacao1/400/300',
+      'https://picsum.photos/seed/cacao2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#33bb55',
+    sphereEmissive: '#116622',
+    proximityRadius: 50,
+    hours: '8:00 AM – 4:00 PM',
+    tips: 'Ask about the farm-to-table chocolate making demo.',
+    relatedActivities: ['Agritourism', 'Educational Tour', 'Farm-to-Table'],
+  },
+  // ── Pasalubong ──
+  {
+    id: 'poi-010',
+    name: 'Luna Pasalubong Center',
+    description:
+      'Your one-stop shop for local delicacies, handicrafts, woven products, and native souvenirs from the Apayao region.',
+    lat: 18.3550,
+    lng: 121.6310,
+    category: 'pasalubong',
+    images: [
+      'https://picsum.photos/seed/pasa1/400/300',
+      'https://picsum.photos/seed/pasa2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#ffcc44',
+    sphereEmissive: '#aa8811',
+    proximityRadius: 30,
+    hours: '8:00 AM – 6:00 PM',
+    tips: 'Look for locally woven rattan baskets and native rice cakes (bibingka, puto).',
+    relatedActivities: ['Shopping', 'Souvenir Hunting', 'Local Products'],
+  },
+  {
+    id: 'poi-011',
+    name: 'Apayao Weavers Collective',
+    description:
+      'A cooperative of local weavers producing traditional Isnag and Ilocano textiles, bags, and handmade accessories.',
+    lat: 18.3545,
+    lng: 121.6322,
+    category: 'pasalubong',
+    images: [
+      'https://picsum.photos/seed/weave1/400/300',
+      'https://picsum.photos/seed/weave2/400/300',
+    ],
+    videoUrl: null,
+    sphereColor: '#eebb33',
+    sphereEmissive: '#997700',
+    proximityRadius: 30,
+    hours: '9:00 AM – 5:00 PM (Mon–Sat)',
+    tips: 'You can watch weavers at work and commission custom pieces.',
+    relatedActivities: ['Shopping', 'Cultural Experience', 'Handicrafts'],
   },
 ]
