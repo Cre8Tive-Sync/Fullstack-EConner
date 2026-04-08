@@ -817,23 +817,29 @@ function ARSceneInner() {
           </>
         )}
 
-        {/* 5 category spheres — always close, camera-relative */}
-        {noPanelOpen && (
-          <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
-        )}
-
-        {/* GPS-placed real POI markers — only when no panel is open */}
-        {noPanelOpen && (!arFailed ? (
+        {/* AR orientation + GPS placement — always mounted so camera tracking never stops */}
+        {!arFailed ? (
           <LocationARProvider onError={handleArError}>
             <ARUpdater />
-            <ClampedPOIs pois={allPois} coords={coords} targetedPoiId={targetedId} />
+            {/* Category spheres and GPS markers — only when no panel is open */}
+            {noPanelOpen && (
+              <>
+                <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
+                <ClampedPOIs pois={allPois} coords={coords} targetedPoiId={targetedId} />
+              </>
+            )}
           </LocationARProvider>
         ) : (
           <>
             <FallbackDeviceOrientationCamera />
-            <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedId} />
+            {noPanelOpen && (
+              <>
+                <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
+                <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedId} />
+              </>
+            )}
           </>
-        ))}
+        )}
 
         {/* Raycasters — only when no panel is open */}
         {noPanelOpen && vrMode && (
