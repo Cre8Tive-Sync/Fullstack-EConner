@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 export default function PanelContent({ type, poi }) {
   if (type === 'overview') return <OverviewPanel poi={poi} />
@@ -10,8 +10,41 @@ export default function PanelContent({ type, poi }) {
 // ─── Overview Panel ──────────────────────────────────────────────────
 
 function OverviewPanel({ poi }) {
+  const scrollRef = useRef()
+  const touchStartY = useRef(0)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const onTouchStart = (e) => {
+      touchStartY.current = e.touches[0].clientY
+      e.stopImmediatePropagation()
+    }
+
+    const onTouchMove = (e) => {
+      e.stopImmediatePropagation()
+      const dy = touchStartY.current - e.touches[0].clientY
+      touchStartY.current = e.touches[0].clientY
+      el.scrollTop += dy
+      if (
+        (dy > 0 && el.scrollTop < el.scrollHeight - el.clientHeight) ||
+        (dy < 0 && el.scrollTop > 0)
+      ) {
+        e.preventDefault()
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [])
+
   return (
-    <div style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
+    <div ref={scrollRef} style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
       {/* Category badge */}
       <div style={{ ...panel.categoryBadge, borderColor: poi.sphereColor, color: poi.sphereColor }}>
         {poi.category}

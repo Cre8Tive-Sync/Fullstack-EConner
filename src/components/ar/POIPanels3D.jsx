@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
@@ -58,6 +58,41 @@ function MapPanel({ poi }) {
 }
 
 function ReviewsPanel({ poi }) {
+  const listRef = useRef()
+  const touchStartY = useRef(0)
+
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+
+    const onTouchStart = (e) => {
+      touchStartY.current = e.touches[0].clientY
+      e.stopImmediatePropagation()
+    }
+
+    const onTouchMove = (e) => {
+      e.stopImmediatePropagation()
+      const dy = touchStartY.current - e.touches[0].clientY
+      touchStartY.current = e.touches[0].clientY
+      el.scrollTop += dy
+      // Only prevent default when we can actually scroll, so the browser
+      // doesn't block the gesture entirely.
+      if (
+        (dy > 0 && el.scrollTop < el.scrollHeight - el.clientHeight) ||
+        (dy < 0 && el.scrollTop > 0)
+      ) {
+        e.preventDefault()
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [])
+
   const reviews = useMemo(() => {
     const defaults = [
       { user: 'A. Reyes', rating: 5, text: `Amazing place. ${poi.tips || 'Worth the visit.'}` },
@@ -70,7 +105,10 @@ function ReviewsPanel({ poi }) {
   return (
     <div style={styles.reviewsWrap}>
       <h3 style={styles.reviewsTitle}>Reviews</h3>
-      <div style={styles.reviewsList}>
+      <div
+        ref={listRef}
+        style={styles.reviewsList}
+      >
         {reviews.map((review, idx) => (
           <article key={`${review.user}-${idx}`} style={styles.reviewItem}>
             <div style={styles.reviewHead}>
@@ -450,6 +488,7 @@ const styles = {
     color: '#fff',
     padding: '10px',
     overflow: 'hidden',
+    minHeight: 0,
   },
   reviewsTitle: {
     margin: '0 0 10px',
@@ -458,7 +497,10 @@ const styles = {
     fontWeight: 800,
   },
   reviewsList: {
+    flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
