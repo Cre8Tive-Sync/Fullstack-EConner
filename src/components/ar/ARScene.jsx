@@ -522,41 +522,6 @@ function Compass() {
   )
 }
 
-// ─── Nearby test POI (placed ~1m north of user on first GPS fix) ───
-
-function useTestPOI(coords) {
-  // Capture the user's first GPS position and create a test POI ~20m ahead
-  const testPoi = useRef(null)
-
-  if (coords && !testPoi.current) {
-    // Offset ~10m north (latitude) — 1 degree latitude ≈ 111,320m
-    // Must be >= AR.js gpsMinDistance (5m) to actually register as a distinct position
-    const offsetLat = 10 / 111320
-    testPoi.current = {
-      id: 'poi-test',
-      name: 'Test Marker',
-      description:
-        'This is a test marker placed 20 meters ahead of your starting position. If you can see this sphere and interact with it, AR is working!',
-      lat: coords.latitude + offsetLat,
-      lng: coords.longitude,
-      category: 'test',
-      images: [
-        'https://picsum.photos/seed/test1/400/300',
-        'https://picsum.photos/seed/test2/400/300',
-      ],
-      videoUrl: null,
-      sphereColor: '#ff3366',
-      sphereEmissive: '#aa1133',
-      proximityRadius: 30,
-      hours: 'Always visible',
-      tips: 'This test marker proves the AR system is working. Walk toward it to see proximity detection.',
-      relatedActivities: ['Testing', 'Demo'],
-    }
-  }
-
-  return testPoi.current
-}
-
 // ─── Permission Gate ─────────────────────────────────────────────────
 // iOS requires deviceorientation permission from a user gesture.
 // This screen requests all permissions before launching the AR scene.
@@ -672,8 +637,6 @@ function ARSceneInner() {
 
   const { isLandscape } = useOrientationDetect()
   const { coords } = useGeolocation()
-  const testPoi = useTestPOI(coords)
-
   // Auto-toggle VR on landscape, off on portrait
   useEffect(() => {
     setVrMode(isLandscape)
@@ -705,10 +668,7 @@ function ARSceneInner() {
     }
   }, [vrMode])
 
-  // In debug mode, prepend the test POI; otherwise just use Firebase/static data
-  const allPois = useMemo(() => {
-    return showDebug && testPoi ? [testPoi, ...firebasePois] : firebasePois
-  }, [showDebug, testPoi, firebasePois])
+  const allPois = firebasePois
 
   const { closestPOI } = useNearbyPOIs(coords, allPois)
 
@@ -782,8 +742,7 @@ function ARSceneInner() {
           <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'} {vrMode ? '+ VR' : ''}</div>
           <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
           <div>POIs loaded: {allPois.length}</div>
-          <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
-          <div>Targeted: {targetedId || 'none'}</div>
+<div>Targeted: {targetedId || 'none'}</div>
           <div>Shutter: {targeted ? 'ENABLED' : 'disabled'}</div>
           <div>Category panel: {activeCategory ? activeCategory.name : 'no'}</div>
           <div>Place panel: {activePoi ? activePoi.name : 'no'}</div>
