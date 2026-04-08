@@ -52,11 +52,6 @@ function ReviewsPanel({ poi }) {
     ]
     return defaults
   }, [poi])
-const PANEL_DEFS = [
-  { id: 'overview', label: null,       angleOffset: 0.65 },  // appears left to user
-  { id: 'details',  label: 'Location Extended', angleOffset: 0 },  // center
-  { id: 'gallery',  label: 'Media',    angleOffset: -0.65 }, // appears right to user
-]
 
   return (
     <div style={styles.reviewsWrap}>
