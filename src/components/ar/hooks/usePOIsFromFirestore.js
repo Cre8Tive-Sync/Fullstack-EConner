@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../../firebaseConfig'
-import { CATEGORY_POIS } from '../data/pois'
+import { POIS } from '../data/pois'
 
 /**
- * Fetches POI documents from the Firestore "pois" collection.
- * Falls back to the static CATEGORY_POIS if the collection is empty or unreachable.
+ * Fetches place documents from the Firestore "pois" collection.
+ * Falls back to the static POIS if the collection is empty or unreachable.
  *
- * Expected Firestore document shape matches the CATEGORY_POIS structure:
+ * Expected Firestore document shape:
  *   { name, description, lat, lng, category, images[], hours, tips,
  *     relatedActivities[], sphereColor, sphereEmissive, proximityRadius }
+ * category must match one of the CATEGORIES[].category keys.
  */
 export function usePOIsFromFirestore() {
-  const [pois, setPois] = useState(CATEGORY_POIS)
+  const [pois, setPois] = useState(POIS)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

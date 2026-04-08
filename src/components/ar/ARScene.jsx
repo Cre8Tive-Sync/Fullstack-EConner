@@ -14,6 +14,8 @@ import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/us
 import { useOrientationDetect } from './hooks/useOrientationDetect'
 import { usePOIsFromFirestore } from './hooks/usePOIsFromFirestore'
 import ARNavigationArrow from './ARNavigationArrow'
+import CategoryListPanel from './CategoryListPanel'
+import { CATEGORIES } from './data/pois'
 
 const MAX_MARKER_DISTANCE = 200
 
@@ -201,8 +203,8 @@ function FallbackPOIMarkers({ pois, targetedPoiId }) {
   )
 }
 
-// Always-visible close arc of category POIs — camera-relative, no GPS needed
-function CloseCategoryMarkers({ pois, targetedPoiId }) {
+// Always-visible close arc of category spheres — camera-relative, no GPS needed
+function CloseCategoryMarkers({ categories, targetedId }) {
   const { camera } = useThree()
   const groupRef = useRef()
   const radius = 4
@@ -214,16 +216,18 @@ function CloseCategoryMarkers({ pois, targetedPoiId }) {
 
   return (
     <group ref={groupRef}>
-      {pois.map((poi, i) => {
+      {categories.map((cat, i) => {
         const arcSpan = Math.PI * 0.8
-        const angle = pois.length > 1
-          ? -arcSpan / 2 + (arcSpan / (pois.length - 1)) * i
+        const angle = categories.length > 1
+          ? -arcSpan / 2 + (arcSpan / (categories.length - 1)) * i
           : 0
         const x = Math.sin(angle) * radius
         const z = -Math.cos(angle) * radius
+        // Reuse POIMarker shape — pass category as a poi-shaped object
+        const asPoi = { ...cat, id: cat.id }
         return (
-          <group key={poi.id} position={[x, 0, z]}>
-            <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
+          <group key={cat.id} position={[x, 0, z]}>
+            <POIMarker poi={asPoi} isTargeted={targetedId === cat.id} />
           </group>
         )
       })}
@@ -653,8 +657,9 @@ function ARUpdater() {
 // ─── Main ARScene (rendered after permissions granted) ──────────────
 
 function ARSceneInner() {
-  const [targetedPoiId, setTargetedPoiId] = useState(null)
-  const [activePoi, setActivePoi] = useState(null)
+  const [targetedId, setTargetedId] = useState(null)       // which sphere is crosshaired
+  const [activeCategory, setActiveCategory] = useState(null) // category list panel open
+  const [activePoi, setActivePoi] = useState(null)           // place detail panels open
   const [navigatingTo, setNavigatingTo] = useState(null)
   const [arFailed, setArFailed] = useState(false)
   const [debugPlaced, setDebugPlaced] = useState(false)
@@ -705,6 +710,32 @@ function ARSceneInner() {
     return showDebug && testPoi ? [testPoi, ...firebasePois] : firebasePois
   }, [showDebug, testPoi, firebasePois])
 
+  const { closestPOI } = useNearbyPOIs(coords, allPois)
+
+  // targetedId tracks which category sphere the crosshair is on
+  const targeted = targetedId !== null
+
+  const handleHit = useCallback((id) => setTargetedId(id), [])
+  const handleMiss = useCallback(() => setTargetedId(null), [])
+  const handleArError = useCallback(() => setArFailed(true), [])
+  const handleDebugPlaced = useCallback(() => setDebugPlaced(true), [])
+
+  // Shutter / dwell on a category sphere → open the category list panel
+  const handleCapture = useCallback(() => {
+    if (!targetedId) return
+    const cat = CATEGORIES.find((c) => c.id === targetedId)
+    if (cat) setActiveCategory(cat)
+  }, [targetedId])
+
+  // User picks a place from the category list → open the 3-panel detail view
+  const handleSelectPlace = useCallback((poi) => {
+    setActiveCategory(null)
+    setActivePoi(poi)
+  }, [])
+
+  const handleCloseCategoryPanel = useCallback(() => setActiveCategory(null), [])
+  const handleClosePoiPanel = useCallback(() => setActivePoi(null), [])
+
   const handleNavigate = useCallback((poi) => {
     setNavigatingTo(poi)
     setActivePoi(null)
@@ -712,83 +743,59 @@ function ARSceneInner() {
 
   const handleStopNavigating = useCallback(() => setNavigatingTo(null), [])
 
-  const { closestPOI } = useNearbyPOIs(coords, allPois)
-
-  const targeted = targetedPoiId !== null
-
-  const handleHit = useCallback((poiId) => setTargetedPoiId(poiId), [])
-  const handleMiss = useCallback(() => setTargetedPoiId(null), [])
-  const handleClosePanel = useCallback(() => setActivePoi(null), [])
-  const handleArError = useCallback(() => setArFailed(true), [])
-  const handleDebugPlaced = useCallback(() => setDebugPlaced(true), [])
-
-  const handleCapture = useCallback(() => {
-    setTargetedPoiId((currentId) => {
-      if (!currentId) return currentId
-      const poi = allPois.find((p) => p.id === currentId)
-      if (poi) setActivePoi(poi)
-      return currentId
-    })
-  }, [allPois])
-
-  // VR dwell activation: when user gazes at a POI for 2s
-  const handleDwellActivate = useCallback((poiId) => {
-    if (poiId === '__vr_close__') {
-      // Close panel via dwell on the VR close button
-      setActivePoi(null)
-      return
-    }
-    const poi = allPois.find((p) => p.id === poiId)
+  // VR dwell: gaze at category sphere → open list
+  const handleDwellActivate = useCallback((id) => {
+    if (id === '__vr_close__') { setActivePoi(null); setActiveCategory(null); return }
+    const cat = CATEGORIES.find((c) => c.id === id)
+    if (cat) { setActiveCategory(cat); return }
+    const poi = allPois.find((p) => p.id === id)
     if (poi) setActivePoi(poi)
   }, [allPois])
 
-  const handleDwellTargetChange = useCallback((poiId) => {
-    setTargetedPoiId(poiId)
-  }, [])
+  const handleDwellTargetChange = useCallback((id) => setTargetedId(id), [])
+
+  // Places for the currently active category
+  const categoryPlaces = useMemo(() => {
+    if (!activeCategory) return []
+    return allPois.filter((p) => p.category === activeCategory.category)
+  }, [activeCategory, allPois])
+
+  const noPanelOpen = !activeCategory && !activePoi
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', touchAction: 'none', overscrollBehavior: 'none' }}>
-      {/* Rear camera feed as background */}
       <CameraBackground vrMode={vrMode} />
 
-      {/* VR toggle button */}
-      <button
-        style={styles.vrToggle}
-        onClick={() => setVrMode((v) => !v)}
-      >
+      <button style={styles.vrToggle} onClick={() => setVrMode((v) => !v)}>
         {vrMode ? 'Exit VR' : 'VR'}
       </button>
 
-      {/* Hide DOM overlays in VR mode — they can't split per eye */}
       {!vrMode && <Compass />}
       {!vrMode && showDebug && closestPOI && <ProximityIndicator poi={closestPOI} />}
 
       {!vrMode && arFailed && (
-        <div style={styles.fallbackBanner}>
-          Demo mode — location AR unavailable
-        </div>
+        <div style={styles.fallbackBanner}>Demo mode — location AR unavailable</div>
       )}
 
-      {/* Debug overlay — hide in VR and when not in debug mode */}
       {!vrMode && showDebug && (
         <div style={styles.debug}>
           <div>Mode: {arFailed ? 'FALLBACK' : 'AR.js'} {vrMode ? '+ VR' : ''}</div>
           <div>GPS: {coords ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${Math.round(coords.accuracy)}m)` : 'waiting...'}</div>
           <div>POIs loaded: {allPois.length}</div>
           <div>Test POI: {testPoi ? 'YES' : 'no (waiting for GPS)'}</div>
-          <div>Targeted: {targetedPoiId || 'none'}</div>
+          <div>Targeted: {targetedId || 'none'}</div>
           <div>Shutter: {targeted ? 'ENABLED' : 'disabled'}</div>
-          <div>Panel open: {activePoi ? activePoi.name : 'no'}</div>
+          <div>Category panel: {activeCategory ? activeCategory.name : 'no'}</div>
+          <div>Place panel: {activePoi ? activePoi.name : 'no'}</div>
           <div>Debug sphere: {debugPlaced ? 'PLACED' : 'waiting...'}</div>
         </div>
       )}
 
-      {/* HOW TO TEST — hide in VR and when not in debug mode */}
       {!vrMode && showDebug && (
         <div style={styles.howTo}>
-          1. Aim crosshair at red sphere{'\n'}
-          2. Crosshair turns green + shutter lights up{'\n'}
-          3. Tap shutter to open panel
+          1. Aim crosshair at a category sphere{'\n'}
+          2. Shutter lights up — tap to open place list{'\n'}
+          3. Tap a place to open detail panels
         </div>
       )}
 
@@ -796,17 +803,13 @@ function ARSceneInner() {
         style={{ position: 'absolute', inset: 0, zIndex: 1 }}
         camera={{ position: [0, 0, 0] }}
         gl={{ alpha: true, premultipliedAlpha: false }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0)
-        }}
+        onCreated={({ gl }) => { gl.setClearColor(0x000000, 0) }}
       >
-        {/* Stereo renderer — takes over when VR mode is on */}
         <StereoRenderer enabled={vrMode} />
-
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 2]} intensity={1} />
 
-        {/* DEBUG only: forward sphere + direction arrow */}
+        {/* DEBUG only */}
         {showDebug && (
           <>
             <DebugForwardSphere poiId={allPois[0]?.id} sphereRef={debugSphereRef} onPlaced={handleDebugPlaced} />
@@ -814,78 +817,77 @@ function ARSceneInner() {
           </>
         )}
 
-        {/* Always-visible close category spheres (camera-relative, no GPS needed) */}
-        <CloseCategoryMarkers pois={firebasePois} targetedPoiId={targetedPoiId} />
+        {/* 5 category spheres — always close, camera-relative */}
+        {noPanelOpen && (
+          <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
+        )}
 
-        {!arFailed ? (
+        {/* GPS-placed real POI markers — only when no panel is open */}
+        {noPanelOpen && (!arFailed ? (
           <LocationARProvider onError={handleArError}>
             <ARUpdater />
-            <ClampedPOIs
-              pois={allPois}
-              coords={coords}
-              targetedPoiId={targetedPoiId}
-            />
+            <ClampedPOIs pois={allPois} coords={coords} targetedPoiId={targetedId} />
           </LocationARProvider>
         ) : (
           <>
             <FallbackDeviceOrientationCamera />
-            <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedPoiId} />
+            <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedId} />
           </>
+        ))}
+
+        {/* Raycasters — only when no panel is open */}
+        {noPanelOpen && vrMode && (
+          <DwellRaycaster onActivate={handleDwellActivate} onTargetChange={handleDwellTargetChange} />
+        )}
+        {noPanelOpen && !vrMode && (
+          <CrosshairRaycaster onHit={handleHit} onMiss={handleMiss} />
         )}
 
-        {/* Raycaster: dwell-based in VR, crosshair + shutter in AR */}
-        {!activePoi && vrMode && (
-          <DwellRaycaster
-            onActivate={handleDwellActivate}
-            onTargetChange={handleDwellTargetChange}
-          />
-        )}
-        {!activePoi && !vrMode && (
-          <CrosshairRaycaster
-            onHit={handleHit}
-            onMiss={handleMiss}
+        {/* Category list panel */}
+        {activeCategory && !activePoi && (
+          <CategoryListPanel
+            category={activeCategory}
+            places={categoryPlaces}
+            onSelectPlace={handleSelectPlace}
+            onClose={handleCloseCategoryPanel}
           />
         )}
 
-        {/* 3D panels — pure Three.js in VR, Html-based in AR */}
+        {/* Place detail panels */}
         {activePoi && vrMode && (
-          <VRPanelContent poi={activePoi} onClose={handleClosePanel} />
+          <VRPanelContent poi={activePoi} onClose={handleClosePoiPanel} />
         )}
         {activePoi && !vrMode && (
-          <POIPanels3D poi={activePoi} onClose={handleClosePanel} onNavigate={handleNavigate} />
+          <POIPanels3D poi={activePoi} onClose={handleClosePoiPanel} onNavigate={handleNavigate} />
         )}
 
-        {/* AR compass arrow — visible whenever navigation is active */}
+        {/* AR navigation arrow */}
         {navigatingTo && (
           <ARNavigationArrow destination={navigatingTo} userCoords={coords} />
         )}
       </Canvas>
 
-      {/* DOM overlays — only in AR mode */}
+      {/* DOM overlays */}
       {!vrMode && <Crosshair active={targeted} />}
 
-      {!vrMode && targeted && !activePoi && (
+      {!vrMode && targeted && noPanelOpen && (
         <div style={styles.targetHint}>
-          {allPois.find((p) => p.id === targetedPoiId)?.name}
+          {CATEGORIES.find((c) => c.id === targetedId)?.name}
         </div>
       )}
 
-      {!vrMode && !activePoi && (
+      {!vrMode && noPanelOpen && (
         <ShutterButton targeted={targeted} onCapture={handleCapture} />
       )}
 
-      {/* Stop navigation button — shown in AR mode while navigating */}
       {!vrMode && navigatingTo && (
         <button style={styles.stopNavBtn} onClick={handleStopNavigating}>
           ✕ Stop Navigation
         </button>
       )}
 
-      {/* VR mode hint */}
-      {vrMode && !activePoi && (
-        <div style={styles.vrHint}>
-          Gaze at a marker for 2s to open info
-        </div>
+      {vrMode && noPanelOpen && (
+        <div style={styles.vrHint}>Gaze at a category sphere for 2s to open</div>
       )}
     </div>
   )
