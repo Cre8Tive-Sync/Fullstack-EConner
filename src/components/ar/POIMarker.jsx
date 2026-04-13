@@ -29,6 +29,9 @@ function ModelMarker({ poi, isTargeted }) {
         child.material = child.material.clone()
         child.material.emissive = new THREE.Color(poi.sphereEmissive)
         child.material.emissiveIntensity = 0.25
+        if (child.material.transparent || child.material.opacity < 1) {
+          child.material.depthWrite = false
+        }
         child.userData = { interactive: true, poiId: poi.id }
         meshesRef.current.push(child)
       }

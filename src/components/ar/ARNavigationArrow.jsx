@@ -133,6 +133,7 @@ export default function ARNavigationArrow({ destination, userCoords }) {
           emissiveIntensity={1.5}
           transparent
           opacity={0.92}
+          depthWrite={false}
         />
       </mesh>
 
@@ -145,6 +146,7 @@ export default function ARNavigationArrow({ destination, userCoords }) {
           emissiveIntensity={2}
           transparent
           opacity={0.92}
+          depthWrite={false}
         />
       </mesh>
 
@@ -157,6 +159,7 @@ export default function ARNavigationArrow({ destination, userCoords }) {
           emissiveIntensity={0.8}
           transparent
           opacity={0.55}
+          depthWrite={false}
         />
       </mesh>
 

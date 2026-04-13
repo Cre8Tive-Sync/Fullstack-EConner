@@ -246,12 +246,12 @@ function VRCloseButton({ onClose }) {
     <group ref={groupRef}>
       <mesh userData={{ interactive: true, poiId: '__vr_close__' }}>
         <planeGeometry args={[1.2, 0.4]} />
-        <meshBasicMaterial color="#ff4466" transparent opacity={0.8} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#ff4466" transparent opacity={0.8} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       {/* "CLOSE" label */}
       <mesh position={[0, 0, 0.01]}>
         <planeGeometry args={[1.0, 0.3]} />
-        <meshBasicMaterial map={createCloseLabelTexture()} transparent side={THREE.DoubleSide} />
+        <meshBasicMaterial map={createCloseLabelTexture()} transparent side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>
   )
@@ -315,6 +315,7 @@ export default function VRPanelContent({ poi, onClose }) {
             map={p.texture}
             transparent
             side={THREE.DoubleSide}
+            depthWrite={false}
           />
         </mesh>
       ))}

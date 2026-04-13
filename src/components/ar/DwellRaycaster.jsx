@@ -86,6 +86,7 @@ export default function DwellRaycaster({ onActivate, onTargetChange }) {
           transparent
           opacity={0.9}
           side={THREE.DoubleSide}
+          depthWrite={false}
         />
       </mesh>
     </group>
