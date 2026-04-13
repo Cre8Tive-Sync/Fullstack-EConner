@@ -194,7 +194,7 @@ function FallbackPOIMarkers({ pois, targetedPoiId }) {
         const x = Math.sin(angle) * radius
         const z = -Math.cos(angle) * radius
         return (
-          <group key={poi.id} position={[x, 0, z]}>
+          <group key={poi.id} position={[x, -0.5, z]}>
             <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
           </group>
         )
@@ -217,7 +217,7 @@ function CloseCategoryMarkers({ categories, targetedId }) {
   return (
     <group ref={groupRef}>
       {categories.map((cat, i) => {
-        const arcSpan = Math.PI * 0.6
+        const arcSpan = Math.PI * 0.45
         const angle = categories.length > 1
           ? -arcSpan / 2 + (arcSpan / (categories.length - 1)) * i
           : 0
@@ -225,10 +225,10 @@ function CloseCategoryMarkers({ categories, targetedId }) {
         const z = -Math.cos(angle) * radius
         // Reuse POIMarker shape — pass category as a poi-shaped object
         const asPoi = { ...cat, id: cat.id, name: cat.label, category_id: cat.id }
-        const xRotation = cat.id === 'restaurants' ? Math.PI / 2 : 0
+        const modelRotation = cat.id === 'restaurants' ? [Math.PI / 2, -Math.PI / 4, 0] : [0, 0, 0]
         return (
-          <group key={cat.id} position={[x, 0, z]} rotation={[xRotation, 0, 0]}>
-            <POIMarker poi={asPoi} isTargeted={targetedId === cat.id} />
+          <group key={cat.id} position={[x, -0.5, z]}>
+            <POIMarker poi={asPoi} isTargeted={targetedId === cat.id} modelRotation={modelRotation} />
           </group>
         )
       })}

@@ -135,7 +135,7 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
 
     const baseAngle = Math.atan2(forward.x, forward.z)
 
-    const makePanel = (angleOffset, distance, yOffset = 0.5) => {
+    const makePanel = (angleOffset, distance, yOffset = 0) => {
       const angle = baseAngle + angleOffset
       const x = pos.x + Math.sin(angle) * distance
       const z = pos.z + Math.cos(angle) * distance

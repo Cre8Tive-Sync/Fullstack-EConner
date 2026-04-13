@@ -57,7 +57,7 @@ function ModelMarker({ poi, isTargeted }) {
   return <primitive ref={ref} object={cloned} />
 }
 
-export default function POIMarker({ poi, isTargeted }) {
+export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }) {
   const groupRef = useRef()
   const sphereRef = useRef()
 
@@ -107,13 +107,15 @@ export default function POIMarker({ poi, isTargeted }) {
   const sphereRadius = 1.25
   const glowRadius = 1.5
   const hasModel = !!modelUrl
-  const labelY = hasModel ? 2.5 : sphereRadius + 1
+  const labelY = hasModel ? -2.5 : -(sphereRadius + 1)
 
   return (
     <group ref={groupRef}>
       {/* 3D Model or Glowing sphere */}
       {hasModel ? (
-        <ModelMarker poi={{ ...poi, modelUrl }} isTargeted={isTargeted} />
+        <group rotation={modelRotation}>
+          <ModelMarker poi={{ ...poi, modelUrl }} isTargeted={isTargeted} />
+        </group>
       ) : (
         <>
           <mesh
