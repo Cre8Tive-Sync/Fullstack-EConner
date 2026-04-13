@@ -194,7 +194,7 @@ function FallbackPOIMarkers({ pois, targetedPoiId }) {
         const x = Math.sin(angle) * radius
         const z = -Math.cos(angle) * radius
         return (
-          <group key={poi.id} position={[x, 0, z]}>
+          <group key={poi.id} position={[x, -0.5, z]}>
             <POIMarker poi={poi} isTargeted={targetedPoiId === poi.id} />
           </group>
         )
@@ -217,17 +217,18 @@ function CloseCategoryMarkers({ categories, targetedId }) {
   return (
     <group ref={groupRef}>
       {categories.map((cat, i) => {
-        const arcSpan = Math.PI * 0.8
+        const arcSpan = Math.PI * 0.45
         const angle = categories.length > 1
           ? -arcSpan / 2 + (arcSpan / (categories.length - 1)) * i
           : 0
         const x = Math.sin(angle) * radius
         const z = -Math.cos(angle) * radius
         // Reuse POIMarker shape — pass category as a poi-shaped object
-        const asPoi = { ...cat, id: cat.id }
+        const asPoi = { ...cat, id: cat.id, name: cat.label, category_id: cat.id }
+        const modelRotation = cat.id === 'restaurants' ? [Math.PI / 2, -Math.PI / 4, 0] : [0, 0, 0]
         return (
-          <group key={cat.id} position={[x, 0, z]}>
-            <POIMarker poi={asPoi} isTargeted={targetedId === cat.id} />
+          <group key={cat.id} position={[x, -0.5, z]}>
+            <POIMarker poi={asPoi} isTargeted={targetedId === cat.id} modelRotation={modelRotation} />
           </group>
         )
       })}
@@ -734,7 +735,7 @@ function ARSceneInner() {
   // Places for the currently active category
   const categoryPlaces = useMemo(() => {
     if (!activeCategory) return []
-    return allPois.filter((p) => p.category === activeCategory.category)
+    return allPois.filter((p) => p.category_id === activeCategory.id)
   }, [activeCategory, allPois])
 
   const noPanelOpen = !activeCategory && !activePoi
@@ -799,20 +800,14 @@ function ARSceneInner() {
             <ARUpdater />
             {/* Category spheres and GPS markers — only when no panel is open */}
             {noPanelOpen && (
-              <>
-                <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
-                <ClampedPOIs pois={allPois} coords={coords} targetedPoiId={targetedId} />
-              </>
+              <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
             )}
           </LocationARProvider>
         ) : (
           <>
             <FallbackDeviceOrientationCamera />
             {noPanelOpen && (
-              <>
-                <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
-                <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedId} />
-              </>
+              <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
             )}
           </>
         )}
@@ -854,7 +849,7 @@ function ARSceneInner() {
 
       {!vrMode && targeted && noPanelOpen && (
         <div style={styles.targetHint}>
-          {CATEGORIES.find((c) => c.id === targetedId)?.name}
+          {CATEGORIES.find((c) => c.id === targetedId)?.label}
         </div>
       )}
 

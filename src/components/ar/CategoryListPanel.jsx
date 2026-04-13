@@ -22,7 +22,7 @@ export default function CategoryListPanel({ category, places, onSelectPlace, onC
     const baseAngle = Math.atan2(forward.x, forward.z)
     const x = pos.x + Math.sin(baseAngle) * distance
     const z = pos.z + Math.cos(baseAngle) * distance
-    const position = new THREE.Vector3(x, pos.y + 0.4, z)
+    const position = new THREE.Vector3(x, pos.y - 0.1, z)
     const faceAngle = Math.atan2(pos.x - x, pos.z - z)
     return { position, faceAngle }
   }, [])
@@ -46,7 +46,7 @@ export default function CategoryListPanel({ category, places, onSelectPlace, onC
             {/* Header */}
             <div style={{ ...styles.header, borderBottomColor: category.sphereColor }}>
               <div style={{ ...styles.dot, background: category.sphereColor, boxShadow: `0 0 8px ${category.sphereColor}` }} />
-              <h2 style={styles.title}>{category.name}</h2>
+              <h2 style={styles.title}>{category.label}</h2>
               <button style={styles.headerClose} onClick={onClose} aria-label="Close">✕</button>
             </div>
 

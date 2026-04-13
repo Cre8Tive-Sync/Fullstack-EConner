@@ -47,7 +47,7 @@ function OverviewPanel({ poi }) {
     <div ref={scrollRef} style={{ ...panel.wrap, padding: '12px', overflowY: 'auto' }}>
       {/* Category badge */}
       <div style={{ ...panel.categoryBadge, borderColor: poi.sphereColor, color: poi.sphereColor }}>
-        {poi.category}
+        {poi.category_id}
       </div>
 
       {/* Hero image */}
@@ -66,11 +66,11 @@ function OverviewPanel({ poi }) {
       {/* Description */}
       <p style={panel.description}>{poi.description}</p>
 
-      {/* Related activities */}
-      {poi.relatedActivities?.length > 0 && (
+      {/* Tags */}
+      {poi.tags?.length > 0 && (
         <div style={panel.tagsRow}>
-          {poi.relatedActivities.map((activity) => (
-            <span key={activity} style={panel.tag}>{activity}</span>
+          {poi.tags.map((tag) => (
+            <span key={tag} style={panel.tag}>{tag}</span>
           ))}
         </div>
       )}
@@ -190,11 +190,11 @@ function DetailsPanel({ poi }) {
       {/* POI name */}
       <h1 style={panel.locationTitle}>{poi.name}</h1>
 
-      {/* Category badges */}
-      {poi.relatedActivities?.length > 0 && (
+      {/* Tags */}
+      {poi.tags?.length > 0 && (
         <div style={panel.badgeRow}>
-          {poi.relatedActivities.map((act) => (
-            <span key={act} style={panel.badge}>{act}</span>
+          {poi.tags.map((tag) => (
+            <span key={tag} style={panel.badge}>{tag}</span>
           ))}
         </div>
       )}

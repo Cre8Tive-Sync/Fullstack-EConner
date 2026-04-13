@@ -67,7 +67,7 @@ function createOverviewTexture(poi) {
   // Category badge
   ctx.font = 'bold 22px sans-serif'
   ctx.fillStyle = poi.sphereColor || '#00ffcc'
-  ctx.fillText(poi.category?.toUpperCase() || '', 30, 50)
+  ctx.fillText(poi.category_id?.toUpperCase() || '', 30, 50)
 
   // Divider
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
@@ -84,12 +84,12 @@ function createOverviewTexture(poi) {
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
   curY = wrapText(ctx, poi.description || '', 30, curY, w - 60, 30)
 
-  // Activity tags
-  if (poi.relatedActivities?.length) {
+  // Tags
+  if (poi.tags?.length) {
     curY += 16
     ctx.font = 'bold 20px sans-serif'
     let tagX = 30
-    for (const tag of poi.relatedActivities) {
+    for (const tag of poi.tags) {
       const tw = ctx.measureText(tag).width + 20
       drawRoundedRect(ctx, tagX, curY - 16, tw, 28, 6)
       ctx.fillStyle = 'rgba(0, 255, 204, 0.15)'
@@ -187,7 +187,7 @@ function createDetailsTexture(poi) {
   const rows = [
     { label: 'HOURS', value: poi.hours || 'N/A' },
     { label: 'LOCATION', value: `${poi.lat?.toFixed(4)}, ${poi.lng?.toFixed(4)}` },
-    { label: 'CATEGORY', value: poi.category || '' },
+    { label: 'CATEGORY', value: poi.category_id || '' },
   ]
 
   for (const row of rows) {
@@ -205,16 +205,16 @@ function createDetailsTexture(poi) {
     y += 62
   }
 
-  // Tips
-  if (poi.tips) {
+  // Address
+  if (poi.address) {
     y += 8
     ctx.font = 'bold 18px sans-serif'
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
-    ctx.fillText('TIPS', 30, y)
+    ctx.fillText('ADDRESS', 30, y)
     y += 26
     ctx.font = '20px sans-serif'
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
-    wrapText(ctx, poi.tips, 30, y, w - 60, 26)
+    wrapText(ctx, poi.address, 30, y, w - 60, 26)
   }
 
   const tex = new THREE.CanvasTexture(canvas)

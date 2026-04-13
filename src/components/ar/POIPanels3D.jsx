@@ -37,7 +37,7 @@ function ReviewsIcon() {
 
 function MapPanel({ poi }) {
   const iframeUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${poi.lng - 0.01}%2C${poi.lat - 0.01}%2C${poi.lng + 0.01}%2C${poi.lat + 0.01}&layer=mapnik&marker=${poi.lat}%2C${poi.lng}`
-  const openMapUrl = `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`
+  const directionsUrl = poi.google_maps_url || `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`
 
   return (
     <div style={styles.mapCard}>
@@ -50,7 +50,7 @@ function MapPanel({ poi }) {
         style={styles.mapFrame}
         loading="lazy"
       />
-      <a href={openMapUrl} target="_blank" rel="noreferrer" style={styles.mapDirections}>
+      <a href={directionsUrl} target="_blank" rel="noreferrer" style={styles.mapDirections}>
         Open in Maps
       </a>
     </div>
@@ -93,31 +93,30 @@ function ReviewsPanel({ poi }) {
     }
   }, [])
 
-  const reviews = useMemo(() => {
-    const defaults = [
-      { user: 'A. Reyes', rating: 5, text: `Amazing place. ${poi.tips || 'Worth the visit.'}` },
-      { user: 'M. Santos', rating: 4, text: `Scenic and easy to find. Best part: ${poi.relatedActivities?.[0] || 'the view'}.` },
-      { user: 'J. Cruz', rating: 5, text: 'Great stop for photos and local exploration. Highly recommended.' },
-    ]
-    return defaults
-  }, [poi])
+  const ratingDisplay = poi.rating != null ? poi.rating.toFixed(1) : null
+  const starCount = poi.rating != null ? Math.round(poi.rating) : 0
 
   return (
     <div style={styles.reviewsWrap}>
       <h3 style={styles.reviewsTitle}>Reviews</h3>
-      <div
-        ref={listRef}
-        style={styles.reviewsList}
-      >
-        {reviews.map((review, idx) => (
-          <article key={`${review.user}-${idx}`} style={styles.reviewItem}>
+      <div ref={listRef} style={styles.reviewsList}>
+        {ratingDisplay ? (
+          <article style={styles.reviewItem}>
             <div style={styles.reviewHead}>
-              <span style={styles.reviewUser}>{review.user}</span>
-              <span style={styles.reviewStars}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+              <span style={styles.reviewStars}>
+                {'★'.repeat(starCount)}{'☆'.repeat(5 - starCount)}
+              </span>
+              <span style={styles.reviewUser}>{ratingDisplay} / 5</span>
             </div>
-            <p style={styles.reviewText}>{review.text}</p>
+            <p style={styles.reviewText}>
+              Based on {poi.total_reviews} {poi.total_reviews === 1 ? 'review' : 'reviews'} on Google Maps.
+            </p>
           </article>
-        ))}
+        ) : (
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif" }}>
+            No reviews yet.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -136,7 +135,7 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
 
     const baseAngle = Math.atan2(forward.x, forward.z)
 
-    const makePanel = (angleOffset, distance, yOffset = 0.5) => {
+    const makePanel = (angleOffset, distance, yOffset = 0) => {
       const angle = baseAngle + angleOffset
       const x = pos.x + Math.sin(angle) * distance
       const z = pos.z + Math.cos(angle) * distance
