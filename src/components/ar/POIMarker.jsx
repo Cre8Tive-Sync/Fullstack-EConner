@@ -139,6 +139,7 @@ export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }
               emissiveIntensity={emissiveIntensity}
               transparent
               opacity={isTargeted ? 0.95 : 0.75}
+              depthWrite={false}
             />
           </mesh>
 
@@ -151,6 +152,7 @@ export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }
                 transparent
                 opacity={0.15}
                 side={THREE.BackSide}
+                depthWrite={false}
               />
             </mesh>
           )}
