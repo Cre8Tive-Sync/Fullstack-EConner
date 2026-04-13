@@ -799,20 +799,14 @@ function ARSceneInner() {
             <ARUpdater />
             {/* Category spheres and GPS markers — only when no panel is open */}
             {noPanelOpen && (
-              <>
-                <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
-                <ClampedPOIs pois={allPois} coords={coords} targetedPoiId={targetedId} />
-              </>
+              <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
             )}
           </LocationARProvider>
         ) : (
           <>
             <FallbackDeviceOrientationCamera />
             {noPanelOpen && (
-              <>
-                <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
-                <FallbackPOIMarkers pois={allPois} targetedPoiId={targetedId} />
-              </>
+              <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
             )}
           </>
         )}

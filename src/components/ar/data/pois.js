@@ -16,6 +16,7 @@ export const CATEGORIES = [
     sphereColor: '#ff8844',
     sphereEmissive: '#aa4411',
     description: 'Local eateries, diners, and riverside dining.',
+    modelUrl: '/models/dining_set_plate_spoon_and_fork.glb',
   },
   {
     id: 'cat-tourist',
@@ -24,6 +25,7 @@ export const CATEGORIES = [
     sphereColor: '#4488ff',
     sphereEmissive: '#1133aa',
     description: 'Natural wonders, rock formations, caves, and falls.',
+    modelUrl: '/models/map_pointer_3d_icon.glb',
   },
   {
     id: 'cat-government',
