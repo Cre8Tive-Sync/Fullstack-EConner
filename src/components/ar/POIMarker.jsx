@@ -29,6 +29,9 @@ function ModelMarker({ poi, isTargeted }) {
         child.material = child.material.clone()
         child.material.emissive = new THREE.Color(poi.sphereEmissive)
         child.material.emissiveIntensity = 0.25
+        if (child.material.transparent || child.material.opacity < 1) {
+          child.material.depthWrite = false
+        }
         child.userData = { interactive: true, poiId: poi.id }
         meshesRef.current.push(child)
       }
@@ -139,6 +142,7 @@ export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }
               emissiveIntensity={emissiveIntensity}
               transparent
               opacity={isTargeted ? 0.95 : 0.75}
+              depthWrite={false}
             />
           </mesh>
 
@@ -151,6 +155,7 @@ export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }
                 transparent
                 opacity={0.15}
                 side={THREE.BackSide}
+                depthWrite={false}
               />
             </mesh>
           )}

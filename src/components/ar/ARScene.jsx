@@ -779,7 +779,7 @@ function ARSceneInner() {
       <Canvas
         style={{ position: 'absolute', inset: 0, zIndex: 1 }}
         camera={{ position: [0, 0, 0] }}
-        gl={{ alpha: true, premultipliedAlpha: false }}
+        gl={{ alpha: true, antialias: true, premultipliedAlpha: false }}
         onCreated={({ gl }) => { gl.setClearColor(0x000000, 0) }}
       >
         <StereoRenderer enabled={vrMode} />
