@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -18,16 +18,19 @@ const CATEGORY_MODELS = {
 function ModelMarker({ poi, isTargeted }) {
   const { scene } = useGLTF(poi.modelUrl)
   const ref = useRef()
+  const meshesRef = useRef([])
 
-  // Auto-scale model to fit within a ~1.25 unit radius
+  // Clone once — do NOT include isTargeted so the mesh is never recreated mid-frame
   const cloned = useMemo(() => {
     const clone = scene.clone(true)
+    meshesRef.current = []
     clone.traverse((child) => {
       if (child.isMesh) {
         child.material = child.material.clone()
         child.material.emissive = new THREE.Color(poi.sphereEmissive)
-        child.material.emissiveIntensity = isTargeted ? 0.6 : 0.25
+        child.material.emissiveIntensity = 0.25
         child.userData = { interactive: true, poiId: poi.id }
+        meshesRef.current.push(child)
       }
     })
 
@@ -45,7 +48,14 @@ function ModelMarker({ poi, isTargeted }) {
     clone.position.sub(center.multiplyScalar(scale))
 
     return clone
-  }, [scene, poi.sphereEmissive, poi.id, isTargeted])
+  }, [scene, poi.sphereEmissive, poi.id])
+
+  // Update emissive intensity without recreating the mesh
+  useEffect(() => {
+    meshesRef.current.forEach((mesh) => {
+      mesh.material.emissiveIntensity = isTargeted ? 0.6 : 0.25
+    })
+  }, [isTargeted])
 
   // Slow rotation
   useFrame((_, delta) => {
@@ -147,11 +157,10 @@ export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }
         </>
       )}
 
-      {/* Floating name label */}
+      {/* Floating name label — not interactive so it never blocks model raycasts */}
       <sprite
         position={[0, labelY, 0]}
         scale={[4, 1, 1]}
-        userData={{ interactive: true, poiId: poi.id }}
       >
         <spriteMaterial
           map={labelTexture}
