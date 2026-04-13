@@ -4,6 +4,12 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { getCategoryForPlace } from './data/pois'
 
+const CATEGORY_MODELS = {
+  restaurants: '/models/dining_set_plate_spoon_and_fork.glb',
+  tourist_spots: '/models/map_pointer_3d_icon.glb',
+  government_offices: '/models/government.glb',
+}
+
 /**
  * Renders a 3D model or glowing sphere + floating name label for a single POI.
  * When poi.modelUrl is set, loads and displays that GLB instead of the sphere.
@@ -55,6 +61,10 @@ export default function POIMarker({ poi, isTargeted }) {
   const groupRef = useRef()
   const sphereRef = useRef()
 
+  // Resolve model: explicit override → category mapping → sphere fallback
+  const categoryId = poi.category_id
+  const modelUrl = poi.modelUrl || CATEGORY_MODELS[categoryId] || null
+
   // Canvas texture for the name label
   const labelTexture = useMemo(() => {
     const canvas = document.createElement('canvas')
@@ -71,10 +81,10 @@ export default function POIMarker({ poi, isTargeted }) {
     ctx.fillStyle = '#ffffff'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(poi.name, 512, 110)
+    ctx.fillText(poi.name ?? '', 512, 110)
 
     // Category subtitle
-    const categoryLabel = getCategoryForPlace(poi.category_id)?.label ?? poi.category_id ?? ''
+    const categoryLabel = getCategoryForPlace(categoryId)?.label ?? categoryId ?? ''
     ctx.shadowBlur = 0
     ctx.font = '40px sans-serif'
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
@@ -83,26 +93,27 @@ export default function POIMarker({ poi, isTargeted }) {
     const tex = new THREE.CanvasTexture(canvas)
     tex.needsUpdate = true
     return tex
-  }, [poi.name, poi.category_id])
+  }, [poi.name, categoryId])
 
   // Bobbing animation
   useFrame(({ clock }) => {
     if (groupRef.current) {
-      groupRef.current.position.y = Math.sin(clock.elapsedTime * 0.6 + poi.id.charCodeAt(4)) * 0.15
+      const seed = poi.id ? poi.id.charCodeAt(4) : 0
+      groupRef.current.position.y = Math.sin(clock.elapsedTime * 0.6 + seed) * 0.15
     }
   })
 
   const emissiveIntensity = isTargeted ? 1.8 : 0.6
   const sphereRadius = 1.25
   const glowRadius = 1.5
-  const hasModel = !!poi.modelUrl
+  const hasModel = !!modelUrl
   const labelY = hasModel ? 2.5 : sphereRadius + 1
 
   return (
     <group ref={groupRef}>
       {/* 3D Model or Glowing sphere */}
       {hasModel ? (
-        <ModelMarker poi={poi} isTargeted={isTargeted} />
+        <ModelMarker poi={{ ...poi, modelUrl }} isTargeted={isTargeted} />
       ) : (
         <>
           <mesh
@@ -154,3 +165,4 @@ export default function POIMarker({ poi, isTargeted }) {
 // Preload 3D models so they're ready when markers appear
 useGLTF.preload('/models/dining_set_plate_spoon_and_fork.glb')
 useGLTF.preload('/models/map_pointer_3d_icon.glb')
+useGLTF.preload('/models/government.glb')

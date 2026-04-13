@@ -224,7 +224,7 @@ function CloseCategoryMarkers({ categories, targetedId }) {
         const x = Math.sin(angle) * radius
         const z = -Math.cos(angle) * radius
         // Reuse POIMarker shape — pass category as a poi-shaped object
-        const asPoi = { ...cat, id: cat.id }
+        const asPoi = { ...cat, id: cat.id, name: cat.label, category_id: cat.id }
         return (
           <group key={cat.id} position={[x, 0, z]}>
             <POIMarker poi={asPoi} isTargeted={targetedId === cat.id} />
