@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { getCategoryForPlace } from './data/pois'
 
 /**
  * Renders a 3D model or glowing sphere + floating name label for a single POI.
@@ -73,15 +74,16 @@ export default function POIMarker({ poi, isTargeted }) {
     ctx.fillText(poi.name, 512, 110)
 
     // Category subtitle
+    const categoryLabel = getCategoryForPlace(poi.category_id)?.label ?? poi.category_id ?? ''
     ctx.shadowBlur = 0
     ctx.font = '40px sans-serif'
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
-    ctx.fillText(poi.category.toUpperCase(), 512, 180)
+    ctx.fillText(categoryLabel.toUpperCase(), 512, 180)
 
     const tex = new THREE.CanvasTexture(canvas)
     tex.needsUpdate = true
     return tex
-  }, [poi.name, poi.category])
+  }, [poi.name, poi.category_id])
 
   // Bobbing animation
   useFrame(({ clock }) => {

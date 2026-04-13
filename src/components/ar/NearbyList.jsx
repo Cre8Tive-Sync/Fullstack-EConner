@@ -15,7 +15,7 @@ export default function NearbyList({ pois, geoError }) {
             <div style={styles.dot} />
             <div style={styles.itemText}>
               <span style={styles.itemName}>{poi.name}</span>
-              <span style={styles.itemCategory}>{poi.category}</span>
+              <span style={styles.itemCategory}>{poi.category_id}</span>
             </div>
             <span style={styles.itemDistance}>
               {poi.distance < 1000

@@ -46,7 +46,7 @@ export default function CategoryListPanel({ category, places, onSelectPlace, onC
             {/* Header */}
             <div style={{ ...styles.header, borderBottomColor: category.sphereColor }}>
               <div style={{ ...styles.dot, background: category.sphereColor, boxShadow: `0 0 8px ${category.sphereColor}` }} />
-              <h2 style={styles.title}>{category.name}</h2>
+              <h2 style={styles.title}>{category.label}</h2>
               <button style={styles.headerClose} onClick={onClose} aria-label="Close">✕</button>
             </div>
 

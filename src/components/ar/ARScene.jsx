@@ -734,7 +734,7 @@ function ARSceneInner() {
   // Places for the currently active category
   const categoryPlaces = useMemo(() => {
     if (!activeCategory) return []
-    return allPois.filter((p) => p.category === activeCategory.category)
+    return allPois.filter((p) => p.category_id === activeCategory.id)
   }, [activeCategory, allPois])
 
   const noPanelOpen = !activeCategory && !activePoi
@@ -848,7 +848,7 @@ function ARSceneInner() {
 
       {!vrMode && targeted && noPanelOpen && (
         <div style={styles.targetHint}>
-          {CATEGORIES.find((c) => c.id === targetedId)?.name}
+          {CATEGORIES.find((c) => c.id === targetedId)?.label}
         </div>
       )}
 
