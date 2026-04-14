@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import POIMarker from './POIMarker'
@@ -832,10 +832,14 @@ function ARSceneInner() {
 
         {/* Place detail panels */}
         {activePoi && vrMode && (
-          <VRPanelContent poi={activePoi} onClose={handleClosePoiPanel} />
+          <Suspense fallback={null}>
+            <VRPanelContent poi={activePoi} onClose={handleClosePoiPanel} />
+          </Suspense>
         )}
         {activePoi && !vrMode && (
-          <POIPanels3D poi={activePoi} onClose={handleClosePoiPanel} onNavigate={handleNavigate} />
+          <Suspense fallback={null}>
+            <POIPanels3D poi={activePoi} onClose={handleClosePoiPanel} onNavigate={handleNavigate} />
+          </Suspense>
         )}
 
         {/* AR navigation arrow */}

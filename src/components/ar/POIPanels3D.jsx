@@ -1,8 +1,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Html } from '@react-three/drei'
+import { Html, useGLTF } from '@react-three/drei'
 import PanelContent from './PanelContent'
+
+// ─── Vines 3D Model on top of panels ──
+function VinesOnPanel({ position, faceAngle }) {
+  const { scene } = useGLTF('/models/AR-Vines.glb')
+  const cloned = useMemo(() => {
+    const clone = scene.clone(true)
+    clone.traverse((child) => {
+      if (child.isMesh) {
+        child.material = child.material.clone()
+        child.material.side = THREE.DoubleSide
+      }
+    })
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const scale = maxDim > 0 ? 3 / maxDim : 1
+    clone.scale.setScalar(scale)
+    // Center the model so it sits at the group's origin
+    const center = new THREE.Vector3()
+    box.getCenter(center)
+    clone.position.sub(center.multiplyScalar(scale))
+    return clone
+  }, [scene])
+
+  return (
+    <group position={[position.x, position.y + 2, position.z]} rotation={[0, faceAngle, 0]}>
+      <primitive object={cloned} rotation={[Math.PI / 2, 0, 0]} />
+    </group>
+  )
+}
 
 function NavigateIcon() {
   return (
@@ -156,6 +187,9 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
 
   return (
     <group>
+      {/* Vines model on top of left panel */}
+      <VinesOnPanel position={panelData[0].position} faceAngle={panelData[0].faceAngle} />
+
       <group position={panelData[0].position}>
         <Html
           center
@@ -229,6 +263,9 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
         </group>
       )}
 
+      {/* Vines model on top of middle panel */}
+      <VinesOnPanel position={panelData[1].position} faceAngle={panelData[1].faceAngle} />
+
       <group position={panelData[1].position}>
         <Html
           center
@@ -248,6 +285,9 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
           </div>
         </Html>
       </group>
+
+      {/* Vines model on top of right panel */}
+      <VinesOnPanel position={panelData[2].position} faceAngle={panelData[2].faceAngle} />
 
       <group position={panelData[2].position}>
         <Html
@@ -293,6 +333,9 @@ function ScreenCloseButton({ onClose }) {
     </group>
   )
 }
+
+// Preload the Vines model
+useGLTF.preload('/models/AR-Vines.glb')
 
 const styles = {
   leftPanelShell: {
