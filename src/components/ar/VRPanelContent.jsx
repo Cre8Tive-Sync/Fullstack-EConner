@@ -1,6 +1,7 @@
-import { useMemo, useRef, useCallback } from 'react'
+import { useMemo, useRef } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { useGLTF } from '@react-three/drei'
 
 const PANEL_DEFS = [
   { id: 'overview', angleOffset: -0.55 },
@@ -12,6 +13,37 @@ const PANEL_DISTANCE = 4
 const PANEL_Y = 0.3
 const PANEL_WIDTH = 2.2
 const PANEL_HEIGHT = 3.0
+
+// ─── Vines 3D Model on top of panels ──
+function VinesOnPanel({ position, faceAngle }) {
+  const { scene } = useGLTF('/models/AR-Vines.glb')
+  const cloned = useMemo(() => {
+    const clone = scene.clone(true)
+    clone.traverse((child) => {
+      if (child.isMesh) {
+        child.material = child.material.clone()
+        child.material.side = THREE.DoubleSide
+      }
+    })
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const scale = maxDim > 0 ? 3 / maxDim : 1
+    clone.scale.setScalar(scale)
+    // Center the model so it sits at the group's origin
+    const center = new THREE.Vector3()
+    box.getCenter(center)
+    clone.position.sub(center.multiplyScalar(scale))
+    return clone
+  }, [scene])
+
+  return (
+    <group position={[position.x, position.y + 2, position.z]} rotation={[0, faceAngle, 0]}>
+      <primitive object={cloned} rotation={[Math.PI / 2, 0, 0]} />
+    </group>
+  )
+}
 
 // ─── Canvas drawing helpers ─────────────────────────────────────────
 
@@ -228,6 +260,9 @@ const textureCreators = {
   details: createDetailsTexture,
 }
 
+// Preload the Vines model
+useGLTF.preload('/models/AR-Vines.glb')
+
 // ─── VR Close target — a 3D sphere the user gazes at to close ───────
 
 function VRCloseButton({ onClose }) {
@@ -304,6 +339,15 @@ export default function VRPanelContent({ poi, onClose }) {
 
   return (
     <group>
+      {/* Vines models on top of each panel */}
+      {panelData.map((p) => (
+        <VinesOnPanel
+          key={`vines-${p.id}`}
+          position={p.position}
+          faceAngle={p.faceAngle}
+        />
+      ))}
+
       {panelData.map((p) => (
         <mesh
           key={p.id}
