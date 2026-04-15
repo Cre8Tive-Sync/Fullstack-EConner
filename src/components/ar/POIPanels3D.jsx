@@ -15,22 +15,34 @@ function VinesOnPanel({ position, faceAngle }) {
         child.material.side = THREE.DoubleSide
       }
     })
+    // Apply the corrective rotation first so the bounding box is measured
+    // in the same orientation that will actually be rendered.
+    clone.rotation.set(Math.PI / 2, 80, 0)
+    clone.updateMatrixWorld(true)
+
+    // Scale so the largest dimension is ~3 world units
     const box = new THREE.Box3().setFromObject(clone)
     const size = new THREE.Vector3()
     box.getSize(size)
     const maxDim = Math.max(size.x, size.y, size.z)
     const scale = maxDim > 0 ? 3 / maxDim : 1
     clone.scale.setScalar(scale)
-    // Center the model so it sits at the group's origin
+    clone.updateMatrixWorld(true)
+
+    // Re-measure after scaling so the center offset is accurate
+    const scaledBox = new THREE.Box3().setFromObject(clone)
     const center = new THREE.Vector3()
-    box.getCenter(center)
-    clone.position.sub(center.multiplyScalar(scale))
+    scaledBox.getCenter(center)
+    clone.position.sub(center)
+
     return clone
   }, [scene])
 
   return (
-    <group position={[position.x, position.y + 2, position.z]} rotation={[0, faceAngle, 0]}>
-      <primitive object={cloned} rotation={[Math.PI / 2, 0, 0]} />
+    <group position={[position.x, position.y + 1.5, position.z]} rotation={[0, faceAngle, 0]}>
+      <group position={[0, -0.5, 2.5]}>
+        <primitive object={cloned} />
+      </group>
     </group>
   )
 }
@@ -179,9 +191,9 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
     }
 
     return [
-      makePanel(0.66, 4),   // left: controls + map/reviews (close to center, still visible)
-      makePanel(0, 4),      // middle: location extended
-      makePanel(-0.66, 4),  // right: media
+      makePanel(0.66, 4, -0.5),   // left: controls + map/reviews (close to center, still visible)
+      makePanel(0, 4, -0.5),      // middle: location extended
+      makePanel(-0.66, 4, -0.5),  // right: media
     ]
   }, [])
 
