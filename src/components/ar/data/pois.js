@@ -606,6 +606,12 @@ const PLACE_DATA_OVERRIDES = [
     slug: 'jam-panciteria-and-food-house',
     operating_hours: [
       { day_of_week: 0, open_time: '07:00', close_time: '20:00', is_closed: false },
+      { day_of_week: 1, open_time: '07:00', close_time: '20:00', is_closed: false },
+      { day_of_week: 2, open_time: '07:00', close_time: '20:00', is_closed: false },
+      { day_of_week: 3, open_time: '07:00', close_time: '20:00', is_closed: false },
+      { day_of_week: 4, open_time: '07:00', close_time: '20:00', is_closed: false },
+      { day_of_week: 5, open_time: '07:00', close_time: '20:00', is_closed: false },
+      { day_of_week: 6, open_time: '07:00', close_time: '20:00', is_closed: false },
     ],
     hours: 'Daily 07:00–20:00',
     tags: ['food', 'panciteria', 'filipino cuisine'],
@@ -615,7 +621,7 @@ const PLACE_DATA_OVERRIDES = [
     sphereColor: '#ff8844',
     sphereEmissive: '#aa4411',
     proximityRadius: 30,
-    modelUrl: '/models/some-place.glb',
+    modelUrl: '/models/jam-panciteria-and-food-house.glb',
   },
   {
     id: 'ChIJcTSbyHavTzwJrngq7IP5',
