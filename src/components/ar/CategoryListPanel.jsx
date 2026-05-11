@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
@@ -9,6 +9,47 @@ import { Html } from '@react-three/drei'
  */
 export default function CategoryListPanel({ category, places, onSelectPlace, onClose }) {
   const { camera } = useThree()
+  const listRef = useRef(null)
+  const touchState = useRef({ startY: 0, isDragging: false })
+
+  // Handle touch scroll manually because Html transform breaks native scroll
+  const handleTouchStart = (e) => {
+    touchState.current.startY = e.touches[0].clientY
+    touchState.current.isDragging = true
+  }
+
+  const handleTouchMove = (e) => {
+    if (!touchState.current.isDragging) return
+    const el = listRef.current
+    if (!el) return
+
+    e.preventDefault()
+    e.stopPropagation()
+
+    const currentY = e.touches[0].clientY
+    const dy = touchState.current.startY - currentY
+    touchState.current.startY = currentY
+
+    el.scrollTop += dy
+  }
+
+  const handleTouchEnd = () => {
+    touchState.current.isDragging = false
+  }
+
+  // Also attach via useEffect for events that might not bubble through React
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+
+    const onWheel = (e) => {
+      e.stopPropagation()
+      el.scrollTop += e.deltaY
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   // Compute position + facing angle once on mount (same pattern as POIPanels3D)
   const panelData = useMemo(() => {
@@ -53,12 +94,18 @@ export default function CategoryListPanel({ category, places, onSelectPlace, onC
             <p style={styles.subtitle}>{category.description}</p>
 
             {/* Place list */}
-            <div style={styles.list}>
+            <div
+              ref={listRef}
+              style={styles.list}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               {places.length === 0 ? (
                 <p style={styles.empty}>No places found in this category yet.</p>
               ) : (
                 places.map((poi) => (
-                  <button
+                  <div
                     key={poi.id}
                     style={styles.placeRow}
                     onClick={() => onSelectPlace(poi)}
@@ -75,7 +122,7 @@ export default function CategoryListPanel({ category, places, onSelectPlace, onC
                       <span style={styles.placeHours}>{poi.hours || ''}</span>
                     </div>
                     <span style={{ ...styles.chevron, color: category.sphereColor }}>›</span>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
@@ -169,7 +216,11 @@ const styles = {
   },
   list: {
     flex: 1,
-    overflowY: 'auto',
+    minHeight: 0,
+    overflowY: 'scroll',
+    overscrollBehavior: 'contain',
+    WebkitOverflowScrolling: 'touch',
+    touchAction: 'none',
     padding: '8px 10px 10px',
     display: 'flex',
     flexDirection: 'column',
@@ -193,6 +244,8 @@ const styles = {
     textAlign: 'left',
     transition: 'background 0.15s ease',
     width: '100%',
+    flexShrink: 0,
+    touchAction: 'none',
   },
   thumb: {
     width: 44,
