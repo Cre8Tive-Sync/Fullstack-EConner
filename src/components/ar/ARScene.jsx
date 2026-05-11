@@ -13,6 +13,7 @@ import { useNearbyPOIs, getClampedCoords } from './hooks/useNearbyPOIs'
 import { useLocationAR, useLocationARSetup, LocationARContext } from './hooks/useLocationAR'
 import { useOrientationDetect } from './hooks/useOrientationDetect'
 import { usePOIsFromFirestore } from './hooks/usePOIsFromFirestore'
+import { useDragCamera } from './hooks/useDragCamera'
 import ARNavigationArrow from './ARNavigationArrow'
 import CategoryListPanel from './CategoryListPanel'
 import { CATEGORIES } from './data/pois'
@@ -610,11 +611,14 @@ function LocationARProvider({ onError, children }) {
   )
 }
 
-function ARUpdater() {
+function ARUpdater({ interactiveMode }) {
   const arState = useLocationAR()
+  useDragCamera({ enabled: !interactiveMode, sensitivity: 0.005 })
 
   useFrame(() => {
-    arState?.orientControls?.current?.update()
+    if (interactiveMode) {
+      arState?.orientControls?.current?.update()
+    }
   })
 
   return null
@@ -630,6 +634,7 @@ function ARSceneInner() {
   const [arFailed, setArFailed] = useState(false)
   const [debugPlaced, setDebugPlaced] = useState(false)
   const [vrMode, setVrMode] = useState(false)
+  const [interactiveMode, setInteractiveMode] = useState(false)
   const debugSphereRef = useRef()
 
   // Prevent the page from scrolling/dragging while AR is active
@@ -753,6 +758,20 @@ function ARSceneInner() {
         {vrMode ? 'Exit VR' : 'VR'}
       </button>
 
+      <button
+        style={{
+          ...styles.vrToggle,
+          right: '6rem',
+          background: interactiveMode ? 'rgba(0, 255, 204, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+          borderColor: interactiveMode ? '#00ffcc' : 'rgba(255, 255, 255, 0.3)',
+          color: interactiveMode ? '#00ffcc' : '#fff',
+        }}
+        onClick={() => setInteractiveMode((v) => !v)}
+        title={interactiveMode ? 'Interactive Mode ON (gyroscope)' : 'Interactive Mode OFF (drag mode)'}
+      >
+        {interactiveMode ? 'Interactive' : 'Drag'}
+      </button>
+
       {!vrMode && <Compass />}
       {!vrMode && showDebug && closestPOI && <ProximityIndicator poi={closestPOI} />}
 
@@ -802,7 +821,9 @@ function ARSceneInner() {
         {/* AR orientation + GPS placement — always mounted so camera tracking never stops */}
         {!arFailed ? (
           <LocationARProvider onError={handleArError}>
-            <ARUpdater />
+            <ARUpdater interactiveMode={interactiveMode} />
+            {/* Only show FallbackDeviceOrientationCamera in interactive mode */}
+            {interactiveMode && <FallbackDeviceOrientationCamera />}
             {/* Category spheres and GPS markers — only when no panel is open */}
             {noPanelOpen && (
               <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
@@ -810,7 +831,7 @@ function ARSceneInner() {
           </LocationARProvider>
         ) : (
           <>
-            <FallbackDeviceOrientationCamera />
+            {interactiveMode && <FallbackDeviceOrientationCamera />}
             {noPanelOpen && (
               <CloseCategoryMarkers categories={CATEGORIES} targetedId={targetedId} />
             )}
@@ -843,7 +864,7 @@ function ARSceneInner() {
         )}
         {activePoi && !vrMode && (
           <Suspense fallback={null}>
-            <POIPanels3D poi={activePoi} onClose={handleClosePoiPanel} onNavigate={handleNavigate} />
+            <POIPanels3D poi={activePoi} onClose={handleClosePoiPanel} onNavigate={handleNavigate} interactiveMode={interactiveMode} />
           </Suspense>
         )}
 

@@ -165,7 +165,7 @@ function ReviewsPanel({ poi }) {
   )
 }
 
-export default function POIPanels3D({ poi, onClose, onNavigate }) {
+export default function POIPanels3D({ poi, onClose, onNavigate, interactiveMode }) {
   const { camera } = useThree()
   const [activeLeftPanel, setActiveLeftPanel] = useState(null)
 
