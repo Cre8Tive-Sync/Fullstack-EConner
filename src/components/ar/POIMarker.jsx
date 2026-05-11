@@ -5,6 +5,8 @@ import * as THREE from 'three'
 import { getCategoryForPlace } from './data/pois'
 
 const CATEGORY_MODELS = {
+  accommodations: '/models/government.glb',
+  farms: '/models/farm.glb',
   restaurants: '/models/dining_set_plate_spoon_and_fork.glb',
   tourist_spots: '/models/map_pointer_3d_icon.glb',
   government_offices: '/models/government.glb',
@@ -184,3 +186,4 @@ useGLTF.preload('/models/dining_set_plate_spoon_and_fork.glb')
 useGLTF.preload('/models/map_pointer_3d_icon.glb')
 useGLTF.preload('/models/government.glb')
 useGLTF.preload('/models/pasalubong.glb')
+useGLTF.preload('/models/farm.glb')
