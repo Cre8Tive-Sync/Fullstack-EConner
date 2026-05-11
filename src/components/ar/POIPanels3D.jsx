@@ -292,7 +292,17 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <div style={styles.middleTab}>{poi.name}</div>
+            <div style={styles.middlePanelHeader}>
+              <div style={styles.middleTab}>{poi.name}</div>
+              <button
+                type="button"
+                style={styles.panelExitBtn}
+                onClick={onClose}
+                aria-label="Exit to category select"
+              >
+                Exit
+              </button>
+            </div>
             <PanelContent type="overview" poi={poi} />
           </div>
         </Html>
@@ -320,28 +330,6 @@ export default function POIPanels3D({ poi, onClose, onNavigate }) {
         </Html>
       </group>
 
-      <ScreenCloseButton onClose={onClose} />
-    </group>
-  )
-}
-
-function ScreenCloseButton({ onClose }) {
-  const { camera } = useThree()
-  const groupRef = useRef()
-
-  useFrame(() => {
-    if (!groupRef.current) return
-    const offset = new THREE.Vector3(0, -1, -2)
-    offset.applyQuaternion(camera.quaternion)
-    groupRef.current.position.copy(camera.position).add(offset)
-    groupRef.current.quaternion.copy(camera.quaternion)
-  })
-
-  return (
-    <group ref={groupRef}>
-      <Html center style={{ pointerEvents: 'auto' }}>
-        <button style={styles.closeBtn} onClick={onClose} aria-label="Close panel">Close</button>
-      </Html>
     </group>
   )
 }
@@ -462,16 +450,39 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.85)',
     overflow: 'hidden',
     boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  middlePanelHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    padding: '12px 12px 8px 16px',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
   },
   middleTab: {
-    padding: '12px 16px 8px',
     fontSize: '0.7rem',
     fontFamily: "'DM Sans', sans-serif",
     fontWeight: 700,
     letterSpacing: '0.12em',
     textTransform: 'uppercase',
     color: 'rgba(255,255,255,0.45)',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    flex: 1,
+    minWidth: 0,
+  },
+  panelExitBtn: {
+    border: '1px solid rgba(255,255,255,0.42)',
+    borderRadius: '999px',
+    background: 'rgba(255,255,255,0.12)',
+    color: '#fff',
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.04em',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    backdropFilter: 'blur(10px)',
   },
   mediaPanel: {
     width: '100%',
@@ -482,19 +493,6 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.85)',
     overflow: 'hidden',
     boxShadow: '0 20px 56px rgba(0,0,0,0.45)',
-  },
-  closeBtn: {
-    padding: '10px 28px',
-    borderRadius: '999px',
-    background: 'rgba(255, 255, 255, 0.12)',
-    border: '1px solid rgba(255, 255, 255, 0.25)',
-    color: '#fff',
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    backdropFilter: 'blur(10px)',
-    letterSpacing: '0.04em',
   },
   mapCard: {
     width: '100%',

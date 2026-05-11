@@ -712,7 +712,12 @@ function ARSceneInner() {
   }, [])
 
   const handleCloseCategoryPanel = useCallback(() => setActiveCategory(null), [])
-  const handleClosePoiPanel = useCallback(() => setActivePoi(null), [])
+  const handleClosePoiPanel = useCallback(() => {
+    if (!activePoi) return
+    const category = CATEGORIES.find((item) => item.id === activePoi.category_id) || null
+    setActivePoi(null)
+    setActiveCategory(category)
+  }, [activePoi])
 
   const handleNavigate = useCallback((poi) => {
     setNavigatingTo(poi)
