@@ -8,6 +8,7 @@ const CATEGORY_MODELS = {
   restaurants: '/models/dining_set_plate_spoon_and_fork.glb',
   tourist_spots: '/models/map_pointer_3d_icon.glb',
   government_offices: '/models/government.glb',
+  products: '/models/pasalubong.glb',
 }
 
 /**
@@ -182,3 +183,4 @@ export default function POIMarker({ poi, isTargeted, modelRotation = [0, 0, 0] }
 useGLTF.preload('/models/dining_set_plate_spoon_and_fork.glb')
 useGLTF.preload('/models/map_pointer_3d_icon.glb')
 useGLTF.preload('/models/government.glb')
+useGLTF.preload('/models/pasalubong.glb')

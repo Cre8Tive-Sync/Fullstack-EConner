@@ -217,7 +217,7 @@ function CloseCategoryMarkers({ categories, targetedId }) {
   return (
     <group ref={groupRef}>
       {categories.map((cat, i) => {
-        const arcSpan = Math.PI * 0.45
+        const arcSpan = Math.PI * 0.75
         const angle = categories.length > 1
           ? -arcSpan / 2 + (arcSpan / (categories.length - 1)) * i
           : 0

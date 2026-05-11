@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -25,6 +25,19 @@ export default function DwellRaycaster({ onActivate, onTargetChange }) {
   const onTargetChangeRef = useRef(onTargetChange)
   onActivateRef.current = onActivate
   onTargetChangeRef.current = onTargetChange
+
+  // Build ring geometry once — update drawRange each frame instead of recreating geometry
+  const ringGeometry = useMemo(() => {
+    const points = []
+    const r = 0.09
+    for (let i = 0; i <= RING_SEGMENTS; i++) {
+      const angle = (i / RING_SEGMENTS) * Math.PI * 2
+      points.push(new THREE.Vector3(Math.cos(angle) * r, Math.sin(angle) * r, 0))
+    }
+    const geom = new THREE.BufferGeometry().setFromPoints(points)
+    geom.setDrawRange(0, 0)
+    return geom
+  }, [])
 
   useFrame((_, delta) => {
     // Raycast from camera center
@@ -62,33 +75,23 @@ export default function DwellRaycaster({ onActivate, onTargetChange }) {
       ringGroupRef.current.visible = poiId != null
     }
 
-    // Update ring arc based on progress
+    // Update arc via drawRange — no geometry allocation
     if (ringRef.current) {
       const progress = poiId ? Math.min(dwellTimer.current / DWELL_TIME, 1) : 0
-      ringRef.current.geometry.dispose()
-      ringRef.current.geometry = new THREE.RingGeometry(
-        0.08,  // inner radius
-        0.1,   // outer radius
-        RING_SEGMENTS,
-        1,
-        0,                         // start angle
-        progress * Math.PI * 2     // arc length
-      )
+      ringRef.current.geometry.setDrawRange(0, Math.floor(progress * RING_SEGMENTS) + 1)
     }
   })
 
   return (
     <group ref={ringGroupRef} visible={false}>
-      <mesh ref={ringRef}>
-        <ringGeometry args={[0.08, 0.1, RING_SEGMENTS, 1, 0, 0]} />
-        <meshBasicMaterial
+      <line ref={ringRef} geometry={ringGeometry}>
+        <lineBasicMaterial
           color="#00ffcc"
           transparent
           opacity={0.9}
-          side={THREE.DoubleSide}
           depthWrite={false}
         />
-      </mesh>
+      </line>
     </group>
   )
 }
