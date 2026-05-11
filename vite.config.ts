@@ -10,8 +10,6 @@ export default defineConfig({
   ],
   server: {
     host: true,
-    // SPA fallback — lets /downloads hard-refresh correctly in dev
-    historyApiFallback: true,
   },
   resolve: {
     alias: {
