@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"d:\\\\Projekts\\\\Cre8Tive Sync\\\\Fullstack-EConner\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Projekts\\\\Cre8Tive Sync\\\\Fullstack-EConner\\\\src\" -Recurse -Force | Where-Object { $_.Name -match \"\\(pages|views|routes\\)\" } | Select-Object FullName)",
+      "Bash(find /mnt/d/Projekts -name \"Fullstack-EConner\" -type d 2>/dev/null | head -1)",
+      "Read(//mnt/d/**)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Projekts\\\\Cre8Tive Sync\\\\Fullstack-EConner\\\\public\" -File | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Projekts\\\\Cre8Tive Sync\\\\Fullstack-EConner\\\\src\\\\components\\\\ar\" -File -Force | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Projekts\\\\Cre8Tive Sync\\\\Fullstack-EConner\\\\dist\" -Force | % { $_.Name })"
+    ]
+  }
+}
