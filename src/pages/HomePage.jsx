@@ -25,18 +25,20 @@ export default function HomePage() {
   return (
     <AppShell>
       <section className="hero fade-up">
-        <p className="hero__eyebrow">Apayao · Philippines</p>
-        <h1 className="hero__title">Discover Conner</h1>
+        <p className="hero__eyebrow">Municipality of Conner · Province of Apayao</p>
+        <div className="hero__brand" aria-hidden="true">
+          <span className="hero__leaf">e</span>
+          <span className="hero__wordmark">Conner</span>
+        </div>
+        <p className="hero__subtitle">Tourism Directory System</p>
+        <h1 className="sr-only">Discover Conner</h1>
         <p className="hero__text">
-          Farms, waterfalls, local products and places to stay — browse them all, then find your way there.
+          Discover farms, waterfalls, local products and places to stay in the heart of Apayao.
         </p>
         <div className="btn-row">
-          <button type="button" className="btn btn--solid" onClick={() => navigate('/map')}>
+          <button type="button" className="btn btn--solid hero__cta" onClick={() => navigate('/map')}>
             <IconMap />
-            Open map
-          </button>
-          <button type="button" className="btn" onClick={() => navigate('/places')}>
-            Browse places
+            Start exploring
           </button>
         </div>
       </section>
