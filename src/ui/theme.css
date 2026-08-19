@@ -433,24 +433,67 @@
 
 .hero {
   position: relative;
-  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: min(580px, 68vh);
+  border-radius: 3px;
   overflow: hidden;
-  padding: 26px 20px 22px;
-  margin-bottom: 22px;
-  background-image: linear-gradient(180deg, rgba(6, 8, 11, 0.35), rgba(6, 8, 11, 0.92)),
+  padding: 46px 24px 38px;
+  margin: -16px -14px 26px;
+  text-align: center;
+  background-image: linear-gradient(180deg, rgba(39, 21, 8, 0.32), rgba(39, 21, 8, 0.2) 50%, rgba(24, 13, 5, 0.72)),
     url('/LoadingScreen Bg.png');
   background-size: cover;
   background-position: center;
-  border: 1px solid var(--c-border);
+  border-bottom: 1px solid rgba(234, 213, 162, 0.32);
+  box-shadow: 0 12px 34px rgba(13, 7, 2, 0.28);
 }
 
 .hero__eyebrow {
-  font-size: 0.66rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--c-accent);
-  margin: 0 0 8px;
+  color: #e6d59c;
+  margin: 0 0 26px;
+  max-width: 34ch;
+}
+
+.hero__brand {
+  display: flex;
+  align-items: baseline;
+  color: #f6e9c8;
+  line-height: 0.9;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.38);
+}
+
+.hero__leaf {
+  margin-right: -5px;
+  color: #9cb84b;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(4.5rem, 18vw, 7rem);
+  font-style: italic;
+  font-weight: 700;
+  transform: rotate(-12deg);
+}
+
+.hero__wordmark {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(3.6rem, 16vw, 6.2rem);
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.hero__subtitle {
+  margin: 18px 0 24px;
+  color: #f1e6c9;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.05rem, 4vw, 1.45rem);
+  font-style: italic;
+  letter-spacing: 0.015em;
 }
 
 .hero__title {
@@ -462,10 +505,30 @@
 }
 
 .hero__text {
-  font-size: 0.85rem;
-  color: var(--c-text-dim);
-  margin: 0 0 18px;
-  max-width: 30ch;
+  max-width: 34ch;
+  margin: 0 0 26px;
+  color: rgba(255, 246, 221, 0.78);
+  font-size: 0.88rem;
+}
+
+.hero__cta {
+  min-width: 190px;
+  border-color: #aec965;
+  background: #789b37;
+  color: #fffced;
+  box-shadow: 0 8px 20px rgba(25, 39, 6, 0.28);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ─── Category tiles ────────────────────────────────────────── */
